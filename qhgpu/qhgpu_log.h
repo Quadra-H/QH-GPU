@@ -11,3 +11,16 @@
 #ifndef __QHGPU_LOG_H__
 #define __QHGPU_LOG_H__
 
+#define QH_LOG_PRINT 4
+#define QH_LOG_INFO  3
+#define QH_LOG_DEBUG 2
+#define QH_LOG_ALERT 1
+#define QH_LOG_ERROR 0
+
+void logging(int level, const char* module, const char *func, int line_num, const char *fmt, ...);
+
+#ifdef QH_LOG_PATH
+
+#endif //end QH_LOG_PATH
+
+#endif //end __QHGPU_LOG_H__

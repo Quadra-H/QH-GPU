@@ -8,26 +8,60 @@
  * Log functions used by both kernel and user space.
  */
 #include "qhgpu.h"
+#include "qhgpu_log.h"
 
-#ifndef __KERNEL__
-
+#ifdef QH_KERNEL //kernel level
+#include <linux/kernel.h>
+#include <linux/module.h>
+#else //user level
 #include <stdio.h>
 #include <stdarg.h>
-
 #define printk printf
 #define vprintk vprintf
+#endif //end QH_KERNEL
+
+//uadslfkjfawbhk
+
+void logging(int level, const char* module, const char *func, int line_num, const char *fmt, ...) {
+	va_list args;
+
+	#ifdef QH_LOG_LEVEL
+	if(level < QH_LOG_LEVEL)
+		return;
+	#endif
+
+	switch(level) {
+	case QH_LOG_ERROR:
+		printk("[%s] %s() %d ERROR: ", module, func, lineno);
+		break;
+	case QH_LOG_ALERT:
+		printk("[%s] %s() %d ALERT: ", module, func, lineno);
+		break;
+	case QH_LOG_DEBUG:
+		printk("[%s] %s() %d DEBUG: ", module, func, lineno);
+		break;
+	case QH_LOG_INFO:
+		printk("[%s] %s() %d INFO: ", module, func, lineno);
+		break;
+	case QH_LOG_PRINT:
+	default: //default PRINT
+		printk("[%s] %s() %d: ", module, func, lineno);
+		break;
+	}
+
+	//todo : log file save
+#ifdef QH_LOG_PATH
 
 #else
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#endif
 
-#endif /* __KERNEL__ */
-
-
-
-
-#ifdef __KERNEL__
+	va_start(args, fmt);
+	vprintk(fmt, args);
+	va_end(args);
+}
 
 
-#endif /* __KERNEL__ */
+#ifdef QH_KERNEL //kernel level
+MODULE_LICENSE(“GPL”);
+#endif //end QH_KERNEL
