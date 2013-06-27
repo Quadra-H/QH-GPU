@@ -32,6 +32,8 @@
 #include "qhgpu.h"
 #include <linux/types.h>
 
+#define __KERNEL__
+
 static int __init mod_init(void) {
 	qhgpu_log(QH_LOG_INFO, "main", "mod_init", 1, "aaa", "bbb");
 	//qhgpu_log(QHGPU_LOG_PRINT, "QHGPU loaded\n");
