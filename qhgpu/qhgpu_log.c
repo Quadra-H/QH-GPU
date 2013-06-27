@@ -32,20 +32,20 @@ void logging(int level, const char* module, const char *func, int line_num, cons
 
 	switch(level) {
 	case QH_LOG_ERROR:
-		printk("[%s] %s() %d ERROR: ", module, func, lineno);
+		printk("[%s] %s() %d ERROR: ", module, func, line_num);
 		break;
 	case QH_LOG_ALERT:
-		printk("[%s] %s() %d ALERT: ", module, func, lineno);
+		printk("[%s] %s() %d ALERT: ", module, func, line_num);
 		break;
 	case QH_LOG_DEBUG:
-		printk("[%s] %s() %d DEBUG: ", module, func, lineno);
+		printk("[%s] %s() %d DEBUG: ", module, func, line_num);
 		break;
 	case QH_LOG_INFO:
-		printk("[%s] %s() %d INFO: ", module, func, lineno);
+		printk("[%s] %s() %d INFO: ", module, func, line_num);
 		break;
 	case QH_LOG_PRINT:
 	default: //default PRINT
-		printk("[%s] %s() %d: ", module, func, lineno);
+		printk("[%s] %s() %d: ", module, func, line_num);
 		break;
 	}
 
