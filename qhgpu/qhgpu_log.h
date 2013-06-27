@@ -17,7 +17,7 @@
 #define QH_LOG_ALERT 1
 #define QH_LOG_ERROR 0
 
-void logging(int level, const char* module, const char *func, int line_num, const char *fmt, ...);
+void qhgpu_log(int level, const char* module, const char *func, int line_num, const char *fmt, ...);
 
 #ifdef QH_LOG_PATH
 

@@ -20,9 +20,7 @@
 #define vprintk vprintf
 #endif //end QH_KERNEL
 
-//uadslfkjfawbhk
-
-void logging(int level, const char* module, const char *func, int line_num, const char *fmt, ...) {
+void qhgpu_log(int level, const char* module, const char *func, int line_num, const char *fmt, ...) {
 	va_list args;
 
 	#ifdef QH_LOG_LEVEL
