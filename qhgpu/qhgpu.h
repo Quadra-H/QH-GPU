@@ -28,6 +28,8 @@
  */
 #if defined __KERNEL__ || defined __QHGPU__
 
+#include "qhgpu_log.h"
+
 #endif /* __KERNEL__ || __QHGPU__  */
 
 /*
