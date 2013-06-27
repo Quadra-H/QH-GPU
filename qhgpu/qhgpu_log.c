@@ -50,15 +50,12 @@ void qhgpu_log(int level, const char* module, const char *func, int line_num, co
 	//todo : log file save
 #ifdef QH_LOG_PATH
 
-#else
-
 #endif
 
 	va_start(args, fmt);
 	vprintk(fmt, args);
 	va_end(args);
 }
-
 
 #ifdef QH_KERNEL //kernel level
 MODULE_LICENSE(“GPL”);

@@ -23,12 +23,11 @@
 	TO_UL(pointer)-TO_UL(src_base)))
 
 
+
 /*
  * Only for kernel code or helper
  */
 #if defined __KERNEL__ || defined __QHGPU__
-
-#include "qhgpu_log.h"
 
 #endif /* __KERNEL__ || __QHGPU__  */
 
@@ -47,6 +46,12 @@
  */
 #ifdef __KERNEL__
 
+#define QHGPU_DEV_NAME "qhgpu"
+
+#include "qhgpu_log.h"
+
+extern int user_call_test();
+extern int user_callback_test();
 
 #endif /* __KERNEL__ */
 

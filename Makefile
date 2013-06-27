@@ -1,4 +1,4 @@
-SUBDIRS = qhgpu
+SUBDIRS = qhgpu test_module
 
 all: $(SUBDIRS)
 
