@@ -1,4 +1,4 @@
-SUBDIRS = qhgpu test_module
+SUBDIRS = qhgpu test_module scripts
 
 all: $(SUBDIRS)
 
@@ -17,4 +17,4 @@ distclean:
 	$(MAKE) all kv=$(kv) TARGET=clean
 
 clean: distclean
-	rm -rf build
+	rm -rf build/*

@@ -56,7 +56,7 @@ int qhgpu_open(struct inode *inode, struct file *filp) {
 }
 
 ssize_t qhgpu_read(struct file *filp, char __user *buf, size_t c, loff_t *fpos) {
-	printk("qhgpu_read called\n");
+	//printk("qhgpu_read called\n");
 	memcpy(buf, &qhgpudev.state, sizeof(int));
 
 	return 4;

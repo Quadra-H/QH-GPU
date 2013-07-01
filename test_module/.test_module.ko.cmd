@@ -1,1 +1,0 @@
-cmd_/home/transcender/git/QH-GPU/test_module/test_module.ko := ld -r -m elf_x86_64 -T /usr/src/linux-headers-3.5.0-34-generic/scripts/module-common.lds --build-id  -o /home/transcender/git/QH-GPU/test_module/test_module.ko /home/transcender/git/QH-GPU/test_module/test_module.o /home/transcender/git/QH-GPU/test_module/test_module.mod.o

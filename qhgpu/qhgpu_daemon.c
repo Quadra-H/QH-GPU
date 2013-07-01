@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <glob.h>
 #include <stdlib.h>
-#include "qhgpu_daemon.h"
+#include "qhgpu.h"
 
 int daemon_register()
 {

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+rmmod test_module && rmmod qhgpu

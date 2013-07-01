@@ -1,0 +1,5 @@
+#!/bin/sh
+
+insmod ./qhgpu.ko &&
+insmod ./test_module.ko &&
+./qhgpu -l `pwd`

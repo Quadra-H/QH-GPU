@@ -10,23 +10,35 @@
 #ifndef __QHGPU_DAEMON_H__
 #define __QHGPU_DAEMON_H__
 
-#include "qhgpu.h"
+struct qhgpu_service {
+    char name[QHGPU_SERVICE_NAME_SIZE];
+    int sid;
+    int (*compute_size)(struct qhgpu_service_request *sreq);
+    int (*launch)(struct qhgpu_service_request *sreq);
+    int (*prepare)(struct qhgpu_service_request *sreq);
+    int (*post)(struct qhgpu_service_request *sreq);
+};
+
+#define SERVICE_INIT "init_service"
+#define SERVICE_FINIT "finit_service"
+#define SERVICE_LIB_PREFIX "libsrv_"
+
+typedef int (*fn_init_service)(
+    void* libhandle, int (*reg_srv)(struct kgpu_service *, void*));
+typedef int (*fn_finit_service)(
+    void* libhandle, int (*unreg_srv)(const char*));
 
 
-#define __round_mask(x, y) ((__typeof__(x))((y)-1))
-#define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
-#define round_down(x, y) ((x) & ~__round_mask(x, y))
-
-#ifndef PAGE_SIZE
-#define PAGE_SIZE 4096
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef __cplusplus
-} helper
-#endif
+#ifdef __QHGPU__
+/*
+struct kgpu_service * kh_lookup_service(const char *name);
+int kh_register_service(struct kgpu_service *s, void *libhandle);
+int kh_unregister_service(const char *name);
+int kh_load_service(const char *libpath);
+int kh_load_all_services(const char *libdir);
+int kh_unload_service(const char *name);
+int kh_unload_all_services();
+*/
+#endif /* __QHGPU__ */
 
 #endif
