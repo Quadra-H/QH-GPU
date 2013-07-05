@@ -19,7 +19,8 @@ qhgpu_log:
 connector: qhgpu_log
 	gcc -c connector.c
 	gcc -c qhgpu_daemon.c
-	g++ -L/usr/local/cuda/lib64 -o "qhgpu" connector.o qhgpu_daemon.o $(LIBS)
+	gcc -c cl_operator.c
+	g++ -L/opt/AMDAPP/lib/x86_64/ -I/opt/AMDAPP/include -o "qhgpu" cl_operator.o connector.o qhgpu_daemon.o $(LIBS)
 	cp ../kernel/* $(BUILD_DIR)
 	$(if $(BUILD_DIR), cp qhgpu $(BUILD_DIR)/ )
 

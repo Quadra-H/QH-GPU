@@ -130,7 +130,11 @@ struct qhgpu_request;
 
 extern int user_call_test();
 extern int user_callback_test();
-
+extern void qhgpu_vfree(void *p);
+extern void* qhgpu_vmalloc(unsigned long nbytes);
+extern int qhgpu_call_sync(struct qhgpu_request *req);
+extern struct qhgpu_request* qhgpu_alloc_request(void);
+extern void qhgpu_free_request(struct qhgpu_request* req);
 
 
 typedef int (*qhgpu_callback)(struct qhgpu_request *req);

@@ -22,9 +22,61 @@
 
 #include "../qhgpu/qhgpu.h"
 
+int test_data=777;
+
+
 static int __init minit(void) {
 	printk("test_module init\n");
-	user_call_test();
+	//user_call_test();
+
+	int err=0;
+
+	size_t nbytes;
+
+	unsigned int cur;
+
+	struct qhgpu_request *req;
+	char *buf;
+
+
+	buf = qhgpu_vmalloc(sizeof(int));
+	if (!buf) {
+		printk("GPU buffer is null.\n");
+		return -EFAULT;
+	}
+
+
+	req  = qhgpu_alloc_request();
+	if (!req) {
+		qhgpu_vfree(buf);
+		printk("can't allocate request\n");
+		return -EFAULT;
+	}
+	req->in = buf;
+	req->out = buf;
+	req->insize = sizeof(int);
+	req->outsize = sizeof(int);
+	req->udatasize = sizeof(int);
+	req->udata = buf;
+
+
+
+	/*
+
+
+	memcpy(req->udata, &test_data, sizeof(test_data));
+	strcpy(req->service_name, "test module");
+
+
+	if (qhgpu_call_sync(req)) {
+		err = -EFAULT;
+		printk("callgpu error\n");
+	} else {
+		printk("callgpu success\n");
+	}
+	qhgpu_vfree(req->in);
+	qhgpu_free_request(req);*/
+
 	return 0;
 }
 

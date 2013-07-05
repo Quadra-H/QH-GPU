@@ -2,7 +2,7 @@
 cl_helper is Created the foundation for Init function, including
 to use the OpenCL API that handles exceptions.
 */
-
+/*
 #include <CL/cl.h>
 #include <vector>
 #include <string>
@@ -517,4 +517,4 @@ void _clRelease()
 }
 
 
-
+*/

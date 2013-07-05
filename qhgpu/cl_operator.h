@@ -7,17 +7,11 @@
  *
  */
 
-#ifndef __CONNECTOR_H__
-#define __CONNECTOR_H__
+#ifndef __CL_OPERATOR_H__
+#define __CL_OPERATOR_H__
 
-
-
-
-
-
-#ifndef PAGE_SIZE
-#define PAGE_SIZE 4096
-#endif
+extern void* gpu_alloc_pinned_mem();
+extern int gpu_init();
 
 #ifdef __cplusplus
 extern "C" {

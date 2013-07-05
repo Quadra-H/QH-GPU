@@ -13,6 +13,7 @@
 #include "list.h"
 #include "qhgpu.h"
 #include "qhgpu_log.h"
+#include "cl_operator.h"
 
 #define ssc(...) _safe_syscall(__VA_ARGS__, __FILE__, __LINE__)
 
@@ -53,7 +54,8 @@ LIST_HEAD(all_reqs);
 static int qc_init(void)
 {
 	int  i, len, r;
-	void *p;
+	void *p = NULL;
+
 
 	printf("alloc GPU Pinned memory buffers : start \n");
 	//dbg("alloc GPU Pinned memory buffers : start \n");
@@ -62,11 +64,14 @@ static int qc_init(void)
 	devfd = ssc(open(qhgpudev, O_RDWR));
 	printf("open dev [%s], ret fd = %d\n", qhgpudev, devfd);
 
+
+	gpu_init();
 	/* alloc GPU Pinned memory buffers */
-	//p = (void*)gpu_alloc_pinned_mem(QHGPU_BUF_SIZE+PAGE_SIZE);
+	p = (void*)gpu_alloc_pinned_mem(QHGPU_BUF_SIZE+PAGE_SIZE);
+	printf("alloc GPU Pinned memory buffers : %p \n", p);
 	/*hostbuf.uva = p;
 	hostbuf.size = QHGPU_BUF_SIZE;
-	printf("alloc GPU Pinned memory buffers : %p \n", hostbuf.uva);
+
 	//dbg("alloc GPU Pinned memory buffers : %p \n", hostbuf.uva);
 	memset(hostbuf.uva, 0, QHGPU_BUF_SIZE);
 	printf("alloc GPU Pinned memory buffers : memset Done! \n");
@@ -99,12 +104,12 @@ mmap
 	printf("qhgpu_gpu_mem_info len  : %d",len);
 */
 	/* tell kernel the buffers */
-	/*r = ioctl(devfd, QHGPU_IOC_SET_GPU_BUFS, (unsigned long)&hostbuf);
+	r = ioctl(devfd, QHGPU_IOC_SET_GPU_BUFS, (unsigned long)&hostbuf);
 	if (r < 0) {
 		printf("device write fail!");
 		perror("device write fail!");
 		abort();
-	}*/
+	}/**/
 
 	return 0;
 }
@@ -153,7 +158,7 @@ static int qc_get_next_service_request(void)
 			return -1;
 
 		err = read(devfd, (char*)(&kureq), sizeof(struct qhgpu_ku_request));
-		printf("qc_get_next_service_request err: %d \n",err);
+		//printf("qc_get_next_service_request err: %d \n",err);
 		if (err <= 0) {
 			if (errno == EAGAIN || err == 0) {
 
@@ -164,7 +169,7 @@ static int qc_get_next_service_request(void)
 			}
 		} else {
 
-			printf("init service \n");
+			//printf("init service \n");
 			//qc_log(QH_LOG_PRINT,"init service \n");
 			return 0;
 		}
@@ -212,13 +217,12 @@ static int qc_main_loop()
 
 int main(int argc, char *argv[])
 {
-    int c;
+	int c;
 	qhgpudev = "/dev/qhgpu";
-
-    qc_init();
-    qc_main_loop();
-    qc_finit();
-    return 0;
+	qc_init();
+	qc_main_loop();
+	qc_finit();
+	return 0;
 }
 
 
