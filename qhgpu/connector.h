@@ -10,13 +10,13 @@
 #ifndef __CONNECTOR_H__
 #define __CONNECTOR_H__
 
-
+#include "qhgpu.h"
 
 
 
 
 #ifndef PAGE_SIZE
-#define PAGE_SIZE 4096
+#define PAGE_SIZE 1024
 #endif
 
 #ifdef __cplusplus

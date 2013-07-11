@@ -58,7 +58,7 @@ struct qhgpu_ku_response {
 
 /* the NR will not be used */
 #define QHGPU_BUF_NR 1
-#define QHGPU_BUF_SIZE (1024*1024*1024)
+#define QHGPU_BUF_SIZE (100*1024)
 
 #define QHGPU_MMAP_SIZE KGPU_BUF_SIZE
 
@@ -89,7 +89,7 @@ struct qhgpu_ku_response {
 /*
  * For helper and service providers
  */
-#ifndef __KERNEL__
+//#ifndef __KERNEL__
 
 struct qhgpu_service;
 
@@ -99,7 +99,7 @@ struct qhgpu_service_request {
     void *din, *dout, *ddata;
     unsigned long insize, outsize, datasize;
     int errcode;
-    struct kgpu_service *s;
+    struct qhgpu_service *s;
     int block_x, block_y;
     int grid_x, grid_y;
     int state;
@@ -117,7 +117,7 @@ struct qhgpu_service_request {
 
 
 
-#endif /* no __KERNEL__ */
+//#endif /* no __KERNEL__ */
 
 /*
  * For kernel code only

@@ -34,7 +34,7 @@
 #include "cl_helper.h"
 
 
-#define QHGPU_BUF_UNIT_SIZE (1024*1024)
+#define QHGPU_BUF_UNIT_SIZE (50*1024)
 #define QHGPU_BUF_NR_FRAMES_PER_UNIT (QHGPU_BUF_UNIT_SIZE/PAGE_SIZE)
 
 
@@ -109,6 +109,55 @@ static atomic_t qhgpu_av = ATOMIC_INIT(1);
 
 
 
+int qhgpu_next_request_id(void)
+{
+    int rt = -1;
+
+    spin_lock(&(qhgpudev.ridlock));
+
+    qhgpudev.rid_sequence++;
+    if (qhgpudev.rid_sequence < 0)
+    	qhgpudev.rid_sequence = 0;
+    rt = qhgpudev.rid_sequence;
+
+    spin_unlock(&(qhgpudev.ridlock));
+
+    return rt;
+}
+EXPORT_SYMBOL_GPL(qhgpu_next_request_id);
+
+static void qhgpu_request_item_constructor(void *data)
+{
+    struct _qhgpu_request_item *item =
+	(struct _qhgpu_request_item*)data;
+
+    if (item) {
+	memset(item, 0, sizeof(struct _qhgpu_request_item));
+	INIT_LIST_HEAD(&item->list);
+	item->r = NULL;
+    }
+}
+
+static void qhgpu_sync_call_data_constructor(void *data)
+{
+    struct _qhgpu_sync_call_data *d =
+	(struct _qhgpu_sync_call_data*)data;
+    if (d) {
+	memset(d, 0, sizeof(struct _qhgpu_sync_call_data));
+    }
+}
+
+static void qhgpu_request_constructor(void* data)
+{
+    struct qhgpu_request *req = (struct qhgpu_request*)data;
+    if (req) {
+	memset(req, 0, sizeof(struct qhgpu_request));
+	req->id = qhgpu_next_request_id();
+	req->service_name[0] = 0;
+    }
+}
+
+
 
 struct page* qhgpu_v2page(unsigned long v)
 {
@@ -151,19 +200,139 @@ int qhgpu_open(struct inode *inode, struct file *filp) {
 	return 0;
 }
 
-ssize_t qhgpu_read(struct file *filp, char __user *buf, size_t c, loff_t *fpos) {
-	//printk("qhgpu_read called\n");
-	memcpy(buf, &qhgpudev.state, sizeof(int));
 
-	return 4;
+
+
+/*
+ * find request by id in the rtdreqs
+ * offlist = 1: remove the request from the list
+ * offlist = 0: keep the request in the list
+ */
+static struct _qhgpu_request_item* find_request(int id, int offlist)
+{
+
+	struct _qhgpu_request_item *pos, *n;
+
+	spin_lock(&(qhgpudev.rtdreqlock));
+
+	list_for_each_entry_safe(pos, n, &(qhgpudev.rtdreqs), list) {
+		if (pos->r->id == id) {
+			if (offlist)
+				list_del(&pos->list);
+			spin_unlock(&(qhgpudev.rtdreqlock));
+			return pos;
+		}
+	}
+	spin_unlock(&(qhgpudev.rtdreqlock));
+	return NULL;
 }
+
+
+
 
 ssize_t qhgpu_write(struct file *filp, const char __user *buf, size_t count, loff_t *fpos) {
-	printk("qhgpu_write called\n");
-	memcpy(&qhgpudev.state, buf, sizeof(int));
 
-	return 4;
+
+	printk("qhgpu_write called\n");
+
+	struct qhgpu_ku_response kuresp;
+	struct _qhgpu_request_item *item;
+	ssize_t ret = 0;
+	size_t  realcount;
+
+	if (count < sizeof(struct qhgpu_ku_response))
+		ret = -EINVAL; /* Too small. */
+	else
+	{
+		realcount = sizeof(struct qhgpu_ku_response);
+
+		memcpy/*copy_from_user*/(&kuresp, buf, realcount);
+
+
+		item = find_request(kuresp.id, 1);
+		if (!item)
+		{
+			printk("no request found !! \n");
+			ret = -EFAULT; /* no request found */
+		} else {
+
+			printk("request found !! %d \n",item->r->errcode);
+
+			item->r->errcode = kuresp.errcode;
+			/*if (unlikely(kuresp.errcode != 0)) {
+				switch(kuresp.errcode) {
+				case QHGPU_NO_RESPONSE:
+					printk("userspace helper doesn't give any response\n");
+					break;
+				case QHGPU_NO_SERVICE:
+					printk("no such service %s\n",item->r->service_name);
+					break;
+
+				case QHGPU_TERMINATED:
+					printk("request is terminated\n");
+					break;
+
+				default:
+					printk("unknown error with code %d\n",kuresp.id);
+					break;
+				}
+			}*/
+			item->r->callback(item->r);
+			printk("callback done !! \n");
+			ret = count;/*realcount;*/
+			*fpos += ret;
+			kmem_cache_free(qhgpu_request_item_cache, item);
+		}
+	}
+
+	return ret;
 }
+
+
+
+static void fill_ku_request(struct qhgpu_ku_request *kureq,
+			   struct qhgpu_request *req)
+{
+
+	kureq->id = req->id;
+	memcpy(kureq->service_name, req->service_name, QHGPU_SERVICE_NAME_SIZE);
+
+
+	if (ADDR_WITHIN(req->in, qhgpudev.gmpool.kva,
+			qhgpudev.gmpool.npages<<PAGE_SHIFT)) {
+		kureq->in = (void*)ADDR_REBASE(qhgpudev.gmpool.uva,
+				qhgpudev.gmpool.kva,
+				req->in);
+	} else {
+		kureq->in = req->in;
+	}
+
+
+	if (ADDR_WITHIN(req->out, qhgpudev.gmpool.kva,
+			qhgpudev.gmpool.npages<<PAGE_SHIFT)) {
+		kureq->out = (void*)ADDR_REBASE(qhgpudev.gmpool.uva,
+				qhgpudev.gmpool.kva,
+				req->out);
+	} else {
+		kureq->out = req->out;
+	}
+
+
+	if (ADDR_WITHIN(req->udata, qhgpudev.gmpool.kva,
+			qhgpudev.gmpool.npages<<PAGE_SHIFT)) {
+		kureq->data = (void*)ADDR_REBASE(qhgpudev.gmpool.uva,
+				qhgpudev.gmpool.kva,
+				req->udata);
+	} else {
+		kureq->data = req->udata;
+	}
+
+	kureq->insize = req->insize;
+	kureq->outsize = req->outsize;
+	kureq->datasize = req->udatasize;
+}
+
+
 
 
 
@@ -198,13 +367,16 @@ static int set_gpu_mempool(char __user *buf)
 				(unsigned long)(gb.uva) + i*PAGE_SIZE
 				);
 
+
+
+	printk("gmp->npages : %d , QHGPU_BUF_NR_FRAMES_PER_UNIT: %d\n",gmp->npages,QHGPU_BUF_NR_FRAMES_PER_UNIT);
 	/* set up bitmap */
 	gmp->nunits = gmp->npages/QHGPU_BUF_NR_FRAMES_PER_UNIT;
 	if (!gmp->bitmap) {
 		gmp->bitmap = kmalloc(
 				BITS_TO_LONGS(gmp->nunits)*sizeof(long), GFP_KERNEL);
 		if (!gmp->bitmap) {
-			//kgpu_log(KGPU_LOG_ERROR, "run out of memory for gmp bitmap\n");
+			//qhgpu_log(KGPU_LOG_ERROR, "run out of memory for gmp bitmap\n");
 			err = -ENOMEM;
 			goto unlock_and_out;
 		}
@@ -235,46 +407,144 @@ unlock_and_out:
 	spin_unlock(&(qhgpudev.gmpool_lock));
 	return err;
 }
+//static long device_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 
 
-static long qhgpu_ioctl(struct file *filp,
-	       unsigned int cmd, unsigned long arg)
+
+ssize_t qhgpu_read(struct file *filp, char __user *buf, size_t c, loff_t *fpos)
 {
-    int err = 0;
+	ssize_t ret = 0;
+	struct list_head *r;
+	struct _qhgpu_request_item *item;
 
-    /*if (_IOC_TYPE(cmd) != KGPU_IOC_MAGIC)
-	return -ENOTTY;
-    if (_IOC_NR(cmd) > KGPU_IOC_MAXNR) return -ENOTTY;
 
-    if (_IOC_DIR(cmd) & _IOC_READ)
-	err = !access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
-    else if (_IOC_DIR(cmd) & _IOC_WRITE)
-	err = !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
-    if (err) return -EFAULT;
+	printk("qhgpu_read start !! \n");
 
-    switch (cmd) {
+	spin_lock(&(qhgpudev.reqlock));
+	while (list_empty(&(qhgpudev.reqs))) {
+		spin_unlock(&(qhgpudev.reqlock));
 
-    case KGPU_IOC_SET_GPU_BUFS:
-	err = set_gpu_mempool((char*)arg);
-	break;
+		if (filp->f_flags & O_NONBLOCK)
+			return -EAGAIN;
 
-    case KGPU_IOC_GET_GPU_BUFS:
-	err = dump_gpu_bufs((char*)arg);
-	break;
+		if (wait_event_interruptible(
+				qhgpudev.reqq, (!list_empty(&(qhgpudev.reqs)))))
+			return -ERESTARTSYS;
+		spin_lock(&(qhgpudev.reqlock));
+	}
 
-    case KGPU_IOC_SET_STOP:
-	err = terminate_all_requests();
-	break;
+	r = qhgpudev.reqs.next;
+	list_del(r);
+	item = list_entry(r, struct _qhgpu_request_item, list);
+	if (item) {
+		struct qhgpu_ku_request kureq;
+		fill_ku_request(&kureq, item->r);
 
-    default:
-	err = -ENOTTY;
-	break;
-    }*/
+		memcpy(buf, &kureq, sizeof(struct qhgpu_ku_request));
+		ret = c;
+	}
 
-    printk("qhgpu_ioctl call !!! \n");
+	spin_unlock(&(qhgpudev.reqlock));
+	if (ret > 0 && item) {
+		spin_lock(&(qhgpudev.rtdreqlock));
+		INIT_LIST_HEAD(&item->list);
 
-    return err;
+		printk("add item to qhgpudev.rtdreqs !! \n");
+		list_add_tail(&item->list, &(qhgpudev.rtdreqs));
+
+		spin_unlock(&(qhgpudev.rtdreqlock));
+	}
+	*fpos += ret;
+	return ret;
 }
+
+
+
+static long qhgpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	int err =0;
+
+	if (_IOC_TYPE(cmd) != QHGPU_IOC_MAGIC)
+		return -ENOTTY;
+	if (_IOC_NR(cmd) > QHGPU_IOC_MAXNR) return -ENOTTY;
+
+
+	if (_IOC_DIR(cmd) & _IOC_READ)
+		err = !access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
+	else if (_IOC_DIR(cmd) & _IOC_WRITE)
+		err = !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
+	if (err) return -EFAULT;
+
+	switch (cmd) {
+
+	case QHGPU_IOC_SET_GPU_BUFS:
+		printk("qhgpu_ioctl QHGPU_IOC_SET_GPU_BUFS. \n");
+		err = set_gpu_mempool((char*)arg);
+		break;
+
+	case QHGPU_IOC_GET_GPU_BUFS:
+		printk("qhgpu_ioctl QHGPU_IOC_GET_GPU_BUFS. \n");
+		//err = dump_gpu_bufs((char*)arg);
+		break;
+
+
+	case QHGPU_IOC_SET_STOP:
+		printk("qhgpu_ioctl QHGPU_IOC_SET_STOP. \n");
+		//err = terminate_all_requests();
+		break;
+
+	default://
+		err = -ENOTTY;
+		break;
+	}
+
+	printk("qhgpu_ioctl call !!! %d \n",err);
+	return err;
+}
+
+
+
+static int qhgpu_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	/*
+	if (vma->vm_end - vma->vm_start != KGPU_MMAP_SIZE) {
+	qhgpu_log(KGPU_LOG_ALERT,
+		 "mmap size incorrect from 0x$lX to 0x%lX with "
+		 "%lu bytes\n", vma->vm_start, vma->vm_end,
+		 vma->vm_end-vma->vm_start);
+	return -EINVAL;
+    }
+    vma->vm_ops = &qhgpu_vm_ops;
+    vma->vm_flags |= VM_RESERVED;
+    set_vm(vma);*/
+
+    return 0;
+}
+
+
+
+static unsigned int qhgpu_poll(struct file *filp, poll_table *wait)
+{
+
+	//printk("qhgpu_poll start !!!");
+	unsigned int mask = 0;
+
+	spin_lock(&(qhgpudev.reqlock));
+
+	poll_wait(filp, &(qhgpudev.reqq), wait);
+
+	if (!list_empty(&(qhgpudev.reqs)))
+		mask |= POLLIN | POLLRDNORM;
+
+	mask |= POLLOUT | POLLWRNORM;
+
+	spin_unlock(&(qhgpudev.reqlock));
+
+	//printk("qhgpu_poll end !!!");
+
+	return mask;
+}
+
 
 
 static struct file_operations qhgpu_ops = {
@@ -282,18 +552,73 @@ static struct file_operations qhgpu_ops = {
 		.open 		= qhgpu_open,
 		.read 		= qhgpu_read,
 		.unlocked_ioctl = qhgpu_ioctl,
-		.write 	= qhgpu_write
+		.write 	= qhgpu_write,
+		.poll           = qhgpu_poll,
+		.mmap           = qhgpu_mmap
 };
-
-
-
-
 
 
 
 static int qhgpu_init(void) {
 	int result = 0;
 	int devno;
+
+
+
+	qhgpudev.state = QHGPU_OK;
+
+
+	INIT_LIST_HEAD(&(qhgpudev.reqs));
+	INIT_LIST_HEAD(&(qhgpudev.rtdreqs));
+
+
+	spin_lock_init(&(qhgpudev.reqlock));
+	spin_lock_init(&(qhgpudev.rtdreqlock));
+
+
+	init_waitqueue_head(&(qhgpudev.reqq));
+
+
+	spin_lock_init(&(qhgpudev.ridlock));
+	spin_lock_init(&(qhgpudev.gmpool_lock));
+	spin_lock_init(&(qhgpudev.vm_lock));
+
+	memset(&qhgpudev.vm, 0, sizeof(struct _qhgpu_vma));
+
+	qhgpudev.rid_sequence = 0;
+
+
+	qhgpu_request_cache = kmem_cache_create(
+			"qhgpu_request_cache", sizeof(struct qhgpu_request), 0,
+			SLAB_HWCACHE_ALIGN, qhgpu_request_constructor);
+	if (!qhgpu_request_cache) {
+		printk("can't create request cache\n");
+		return -EFAULT;
+	}
+	qhgpu_request_item_cache = kmem_cache_create(
+			"qhgpu_request_item_cache", sizeof(struct _qhgpu_request_item), 0,
+			SLAB_HWCACHE_ALIGN, qhgpu_request_item_constructor);
+	if (!qhgpu_request_item_cache) {
+		printk("can't create request item cache\n");
+		kmem_cache_destroy(qhgpu_request_cache);
+		return -EFAULT;
+	}
+
+	qhgpu_sync_call_data_cache = kmem_cache_create(
+			"qhgpu_sync_call_data_cache", sizeof(struct _qhgpu_sync_call_data), 0,
+			SLAB_HWCACHE_ALIGN, qhgpu_sync_call_data_constructor);
+	if (!qhgpu_sync_call_data_cache) {
+		printk("can't create sync call data cache\n");
+		kmem_cache_destroy(qhgpu_request_cache);
+		kmem_cache_destroy(qhgpu_request_item_cache);
+		return -EFAULT;
+	}
+
+
+	/* initialize buffer info */
+	memset(&qhgpudev.gmpool, 0, sizeof(struct _qhgpu_mempool));
+
+
 
 	/* dev class */
 	qhgpudev.cls = class_create(THIS_MODULE, "QHGPU_DEV_NAME");
@@ -355,8 +680,6 @@ static int qhgpu_clean(void) {
 	return 1;
 }
 
-
-
 void qhgpu_free_request(struct qhgpu_request* req)
 {
     kmem_cache_free(qhgpu_request_cache, req);
@@ -394,20 +717,20 @@ EXPORT_SYMBOL_GPL(qhgpu_alloc_request);
  */
 static int sync_callback(struct qhgpu_request *req)
 {
-    struct _qhgpu_sync_call_data *data = (struct _qhgpu_sync_call_data*)
-	req->kdata;
 
-    data->done = 1;
+	printk("sync_callback !!!!\n");
+	struct _qhgpu_sync_call_data *data = (struct _qhgpu_sync_call_data*)req->kdata;
 
-    wake_up_interruptible(&data->queue);
-
-    return 0;
+	data->done = 1;
+	wake_up_interruptible(&data->queue);
+	return 0;
 }
 /*
  * Sync GPU call
  */
 int qhgpu_call_sync(struct qhgpu_request *req)
 {
+	printk("qhgpu_call_sync START~!!!\n");
 	struct _qhgpu_sync_call_data *data;
 	struct _qhgpu_request_item *item;
 
@@ -418,7 +741,7 @@ int qhgpu_call_sync(struct qhgpu_request *req)
 
 	data = kmem_cache_alloc(qhgpu_sync_call_data_cache, GFP_KERNEL);
 	if (!data) {
-		printk("qhkgpu_call_sync alloc mem failed\n");
+		printk("qhgpu_call_sync alloc mem failed\n");
 		return -ENOMEM;
 	}
 	item = kmem_cache_alloc(qhgpu_request_item_cache, GFP_KERNEL);
@@ -436,7 +759,9 @@ int qhgpu_call_sync(struct qhgpu_request *req)
 	init_waitqueue_head(&data->queue);
 
 	req->kdata = data;
-	req->callback = sync_callback;
+	//req->callback = sync_callback;
+
+
 
 	spin_lock(&(qhgpudev.reqlock));
 
@@ -454,12 +779,16 @@ int qhgpu_call_sync(struct qhgpu_request *req)
 	req->kdata = data->oldkdata;
 	req->callback = data->oldcallback;
 	kmem_cache_free(qhgpu_sync_call_data_cache, data);
+
+
+
+
+
+
+	printk("qhgpu_call_sync DONE~!!!\n");
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qhgpu_call_sync);
-
-
-
 
 void* qhgpu_vmalloc(unsigned long nbytes)
 {
@@ -475,9 +804,12 @@ void* qhgpu_vmalloc(unsigned long nbytes)
 
 
     if (idx < qhgpudev.gmpool.nunits) {
+    	printk("bitmap_set start \n");
     	bitmap_set(qhgpudev.gmpool.bitmap, idx, req_nunits);
+    	printk("bitmap_set end \n");
     	p = (void*)((unsigned long)(qhgpudev.gmpool.kva)
     			+ idx*QHGPU_BUF_UNIT_SIZE);
+    	printk("qhgpudev.gmpool.kva p: %p \n",p);
     	qhgpudev.gmpool.alloc_sz[idx] = req_nunits;
     } else {
     	printk("out of GPU memory for malloc %lu\n",nbytes);

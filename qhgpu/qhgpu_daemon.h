@@ -30,15 +30,15 @@ typedef int (*fn_finit_service)(
 
 
 #ifdef __QHGPU__
-/*
-struct kgpu_service * kh_lookup_service(const char *name);
-int kh_register_service(struct kgpu_service *s, void *libhandle);
-int kh_unregister_service(const char *name);
-int kh_load_service(const char *libpath);
-int kh_load_all_services(const char *libdir);
-int kh_unload_service(const char *name);
-int kh_unload_all_services();
-*/
+
+struct qhgpu_service * qc_lookup_service(const char *name);
+int qc_register_service(struct kgpu_service *s, void *libhandle);
+int qc_unregister_service(const char *name);
+int qc_load_service(const char *libpath);
+int qc_load_all_services(const char *libdir);
+int qc_unload_service(const char *name);
+int qc_unload_all_services();
+
 #endif /* __QHGPU__ */
 
 #endif
