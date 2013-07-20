@@ -25,6 +25,36 @@
 int test_data=777;
 
 
+
+static int test_gpu_callback(struct qhgpu_request *req)
+{
+
+	printk("test_gpu_callback\n");
+    int *data = (int *)req->udata;
+
+    printk("test_gpu_callback: %d\n",*data);
+
+    /*if (!zero_copy)
+	__done_cryption(data->desc, data->dst, data->src, data->sz,
+			(char*)req->out, data->offset);
+
+    complete(data->c);
+
+    if (zero_copy) {
+	kgpu_unmap_area(TO_UL(req->in));
+    } else
+	kgpu_vfree(req->in);
+
+    if (data->expage)
+	free_page(TO_UL(data->expage));
+    kgpu_free_request(req);
+
+    kfree(data);*/
+    return 0;
+}
+
+
+
 static int __init minit(void) {
 	printk("test_module init\n");
 	//user_call_test();
@@ -58,31 +88,31 @@ static int __init minit(void) {
 	req->outsize = sizeof(int);
 	req->udatasize = sizeof(int);
 	req->udata = buf;
+	req->callback = test_gpu_callback;
+	/**/
 
-
-
-	/*
-
-
+	printk("data copy start \n");
 	memcpy(req->udata, &test_data, sizeof(test_data));
 	strcpy(req->service_name, "test module");
+	printk("data copy end \n");
 
 
+	printk("gpu call start \n");
 	if (qhgpu_call_sync(req)) {
 		err = -EFAULT;
 		printk("callgpu error\n");
 	} else {
 		printk("callgpu success\n");
 	}
+
 	qhgpu_vfree(req->in);
-	qhgpu_free_request(req);*/
+	qhgpu_free_request(req);
 
 	return 0;
 }
 
 static void __exit mexit(void) {
 	printk("test_module exit\n");
-	user_callback_test();
 }
 
 module_init( minit);
