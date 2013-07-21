@@ -1,4 +1,4 @@
-SUBDIRS = qhgpu test_module scripts
+SUBDIRS = qhgpu test_module scripts benchmark
 
 all: $(SUBDIRS)
 

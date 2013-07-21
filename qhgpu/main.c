@@ -297,7 +297,7 @@ static void fill_ku_request(struct qhgpu_ku_request *kureq,
 	kureq->id = req->id;
 	memcpy(kureq->service_name, req->service_name, QHGPU_SERVICE_NAME_SIZE);
 
-
+	//////////////////[?]
 	if (ADDR_WITHIN(req->in, qhgpudev.gmpool.kva,
 			qhgpudev.gmpool.npages<<PAGE_SHIFT)) {
 		kureq->in = (void*)ADDR_REBASE(qhgpudev.gmpool.uva,
@@ -326,6 +326,8 @@ static void fill_ku_request(struct qhgpu_ku_request *kureq,
 	} else {
 		kureq->data = req->udata;
 	}
+	//////////////////
+
 
 	kureq->insize = req->insize;
 	kureq->outsize = req->outsize;
@@ -420,41 +422,62 @@ ssize_t qhgpu_read(struct file *filp, char __user *buf, size_t c, loff_t *fpos)
 
 	printk("qhgpu_read start !! \n");
 
+
+	////////////////////////////////////////////////////////////////////////
+	// call --> qhgpudev.reqs --> connector's qhgpu_ku_request
+	// get request item from qhgpudev.reqs
+	////////////////////////////////////////////////////////////////////////
 	spin_lock(&(qhgpudev.reqlock));
-	while (list_empty(&(qhgpudev.reqs))) {
+
+	while (list_empty(&(qhgpudev.reqs))) {		// if requests are empty
+
 		spin_unlock(&(qhgpudev.reqlock));
 
 		if (filp->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 
+		//  The function will return -ERESTARTSYS if it was interrupted by a signal and
+		//	 0 if condition evaluated to true.
 		if (wait_event_interruptible(
 				qhgpudev.reqq, (!list_empty(&(qhgpudev.reqs)))))
 			return -ERESTARTSYS;
+
 		spin_lock(&(qhgpudev.reqlock));
 	}
 
 	r = qhgpudev.reqs.next;
 	list_del(r);
-	item = list_entry(r, struct _qhgpu_request_item, list);
+	item = list_entry(r, struct _qhgpu_request_item, list);			/// get request item
 	if (item) {
 		struct qhgpu_ku_request kureq;
 		fill_ku_request(&kureq, item->r);
 
-		memcpy(buf, &kureq, sizeof(struct qhgpu_ku_request));
+		memcpy(buf, &kureq, sizeof(struct qhgpu_ku_request));	// 	void *memcpy(void *dest, const void *sour, size_t n);
 		ret = c;
 	}
 
 	spin_unlock(&(qhgpudev.reqlock));
+	////////////////////////////////////////////////////////////////////////
+
+
+
+	////////////////////////////////////////////////////////////////////////
+	// remove request from reqs and add to rtdreqs
+	// get request item from qhgpudev.reqs
+	////////////////////////////////////////////////////////////////////////
 	if (ret > 0 && item) {
 		spin_lock(&(qhgpudev.rtdreqlock));
 		INIT_LIST_HEAD(&item->list);
 
 		printk("add item to qhgpudev.rtdreqs !! \n");
-		list_add_tail(&item->list, &(qhgpudev.rtdreqs));
-
+		list_add_tail(&item->list, &(qhgpudev.rtdreqs));			///// rtdreqs [?]
 		spin_unlock(&(qhgpudev.rtdreqlock));
 	}
-	*fpos += ret;
+	////////////////////////////////////////////////////////////////////////
+
+
+	*fpos += ret;	/// move file pointer sizeof(struct qhgpu_ku_request)
+
 	return ret;
 }
 
@@ -525,27 +548,23 @@ static int qhgpu_mmap(struct file *filp, struct vm_area_struct *vma)
 
 static unsigned int qhgpu_poll(struct file *filp, poll_table *wait)
 {
-
-	//printk("qhgpu_poll start !!!");
 	unsigned int mask = 0;
 
 	spin_lock(&(qhgpudev.reqlock));
 
-	poll_wait(filp, &(qhgpudev.reqq), wait);
+	poll_wait(filp, &(qhgpudev.reqq), wait);	// wait_queue_head_t type reqq wait
 
-	if (!list_empty(&(qhgpudev.reqs)))
-		mask |= POLLIN | POLLRDNORM;
 
-	mask |= POLLOUT | POLLWRNORM;
+	if (!list_empty(&(qhgpudev.reqs)))			// check request list
+		mask |= POLLIN | POLLRDNORM;			// queue readable
+
+	mask |= POLLOUT | POLLWRNORM;				// queue writable
 
 	spin_unlock(&(qhgpudev.reqlock));
 
-	//printk("qhgpu_poll end !!!");
 
 	return mask;
 }
-
-
 
 static struct file_operations qhgpu_ops = {
 		.owner 	= THIS_MODULE,

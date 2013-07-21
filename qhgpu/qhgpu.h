@@ -136,7 +136,7 @@ extern int qhgpu_call_sync(struct qhgpu_request *req);
 extern int qhgpu_call_async(struct qhgpu_request *req);
 extern struct qhgpu_request* qhgpu_alloc_request(void);
 extern void qhgpu_free_request(struct qhgpu_request* req);
-
+extern int qhgpu_next_request_id(void);
 
 typedef int (*qhgpu_callback)(struct qhgpu_request *req);
 

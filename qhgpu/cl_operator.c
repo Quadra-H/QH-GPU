@@ -7,7 +7,7 @@ cl_context Context;
 cl_command_queue CommandQueue;
 cl_device_id *devices;
 
-const int QHGPU_MEM_SIZE = 1024;
+const int QHGPU_MEM_SIZE = 100*1024;
 
 void* gpu_alloc_pinned_mem(){
 
