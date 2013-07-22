@@ -28,8 +28,6 @@ int test_data=777;
 
 static int test_gpu_callback(struct qhgpu_request *req)
 {
-
-	printk("test_gpu_callback\n");
     int *data = (int *)req->udata;
 
     printk("test_gpu_callback: %d\n",*data);
@@ -56,18 +54,15 @@ static int test_gpu_callback(struct qhgpu_request *req)
 
 
 static int __init minit(void) {
-	printk("test_module init\n");
-	//user_call_test();
-
 	int err=0;
 
-	size_t nbytes;
-
-	unsigned int cur;
+//	size_t nbytes;
+//	unsigned int cur;
 
 	struct qhgpu_request *req;
 	char *buf;
 
+	printk("test_module init\n");
 
 	buf = qhgpu_vmalloc(sizeof(int));
 	if (!buf) {

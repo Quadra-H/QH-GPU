@@ -12,9 +12,6 @@
 
 #include "qhgpu.h"
 
-
-
-
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 1024
 #endif

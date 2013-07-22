@@ -10,6 +10,9 @@
 #ifndef __QHGPU_DAEMON_H__
 #define __QHGPU_DAEMON_H__
 
+struct qhgpu_service_request;
+struct qhgpu_service;
+
 struct qhgpu_service {
     char name[QHGPU_SERVICE_NAME_SIZE];
     int sid;
@@ -24,7 +27,7 @@ struct qhgpu_service {
 #define SERVICE_LIB_PREFIX "libsrv_"
 
 typedef int (*fn_init_service)(
-    void* libhandle, int (*reg_srv)(struct kgpu_service *, void*));
+    void* libhandle, int (*reg_srv)(struct qhgpu_service *, void*));
 typedef int (*fn_finit_service)(
     void* libhandle, int (*unreg_srv)(const char*));
 

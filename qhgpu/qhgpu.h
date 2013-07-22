@@ -5,7 +5,7 @@
  * Copyright (c) 2010-2011 University of Utah and the Flux Group.
  * All rights reserved.
  *
- * Common header for userspace helper, kernel mode KGPU and KGPU clients
+ * Common header for userspace helper, kernel mode QHGPU and QHGPU clients
  *
  */
 
@@ -60,7 +60,7 @@ struct qhgpu_ku_response {
 #define QHGPU_BUF_NR 1
 #define QHGPU_BUF_SIZE (100*1024)
 
-#define QHGPU_MMAP_SIZE KGPU_BUF_SIZE
+#define QHGPU_MMAP_SIZE QHGPU_BUF_SIZE
 
 #define QHGPU_DEV_NAME "qhgpu"
 
@@ -128,8 +128,6 @@ struct qhgpu_service_request {
 
 struct qhgpu_request;
 
-extern int user_call_test();
-extern int user_callback_test();
 extern void qhgpu_vfree(void *p);
 extern void* qhgpu_vmalloc(unsigned long nbytes);
 extern int qhgpu_call_sync(struct qhgpu_request *req);

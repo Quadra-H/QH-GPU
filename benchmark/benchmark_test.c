@@ -42,9 +42,8 @@ int mycb(struct qhgpu_request *req)
 
 int test_data=777;
 
-static int test_gpu_callback(struct qhgpu_request *req)
+static int test_gpu_callback(struct qhgpu_request *req)b
 {
-	printk("test_gpu_callback\n");
 	int *data = (int *)req->udata;
 	printk("test_gpu_callback: %d\n",*data);
 	return 0;
@@ -57,9 +56,9 @@ static int __init minit(void)
 	struct completion cs[BATCH_NR];
 
 	int i;
-	struct timeval t0, t1;
-	long tt;
-	unsigned long sz;
+	struct timeval; //t0, t1;
+//	long tt;
+//	unsigned long sz;
 
 	memset(rs, 0, sizeof(struct qhgpu_request*)*BATCH_NR);
 	memset(bufs, 0, sizeof(void*)*BATCH_NR);

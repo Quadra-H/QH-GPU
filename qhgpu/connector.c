@@ -26,9 +26,6 @@ int _safe_syscall(int r, const char *file, int line) {
 	return r;
 }
 
-
-
-
 struct _qhgpu_sritem {
 	struct qhgpu_service_request sr;
 	struct list_head glist;
@@ -153,7 +150,6 @@ static void qc_free_service_request(struct _qhgpu_sritem *s)
 {
 	free(s);
 }
-
 
 
 static void qc_fail_request(struct _qhgpu_sritem *sreq, int serr)
