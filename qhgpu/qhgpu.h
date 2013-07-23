@@ -13,7 +13,6 @@
 #define __QHGPU_H__
 
 
-
 #define TO_UL(v) ((unsigned long)(v))
 
 #define ADDR_WITHIN(pointer, base, size)		\
@@ -81,9 +80,6 @@ struct qhgpu_ku_response {
 #include "qhgpu_log.h"
 
 
-
-
-
 //#endif /* __KERNEL__ || __QHGPU__  */
 
 /*
@@ -128,6 +124,7 @@ struct qhgpu_service_request {
 
 struct qhgpu_request;
 
+char* qhgpu_mmap_addr_pass(void);
 extern void qhgpu_vfree(void *p);
 extern void* qhgpu_vmalloc(unsigned long nbytes);
 extern int qhgpu_call_sync(struct qhgpu_request *req);

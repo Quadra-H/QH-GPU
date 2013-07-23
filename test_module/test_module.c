@@ -22,36 +22,35 @@
 
 #include "../qhgpu/qhgpu.h"
 
-int test_data=777;
+// mapped memory address
+static char* mmap_addr;
 
+int test_data = 777;
 
+static int test_gpu_callback(struct qhgpu_request *req) {
+	int *data = (int *) req->udata;
 
-static int test_gpu_callback(struct qhgpu_request *req)
-{
-    int *data = (int *)req->udata;
+	printk("test_gpu_callback: %d\n", *data);
 
-    printk("test_gpu_callback: %d\n",*data);
-
-    /*if (!zero_copy)
+	/*if (!zero_copy)
 	__done_cryption(data->desc, data->dst, data->src, data->sz,
-			(char*)req->out, data->offset);
+	(char*)req->out, data->offset);
 
-    complete(data->c);
+	complete(data->c);
 
-    if (zero_copy) {
+	if (zero_copy) {
 	kgpu_unmap_area(TO_UL(req->in));
-    } else
+	} else
 	kgpu_vfree(req->in);
 
-    if (data->expage)
+	if (data->expage)
 	free_page(TO_UL(data->expage));
-    kgpu_free_request(req);
+	kgpu_free_request(req);
 
-    kfree(data);*/
-    return 0;
+	kfree(data);*/
+
+	return 0;
 }
-
-
 
 static int __init minit(void) {
 	int err=0;
@@ -70,8 +69,7 @@ static int __init minit(void) {
 		return -EFAULT;
 	}
 
-
-	req  = qhgpu_alloc_request();
+	req = qhgpu_alloc_request();
 	if (!req) {
 		qhgpu_vfree(buf);
 		printk("can't allocate request\n");
@@ -91,6 +89,9 @@ static int __init minit(void) {
 	strcpy(req->service_name, "test module");
 	printk("data copy end \n");
 
+	// init mmap_addr
+	mmap_addr = qhgpu_mmap_addr_pass();
+	memcpy(mmap_addr, "mmap_test!", 10);
 
 	printk("gpu call start \n");
 	if (qhgpu_call_sync(req)) {

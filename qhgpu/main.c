@@ -81,6 +81,8 @@ struct _qhgpu_dev {
 	spinlock_t vm_lock;
 
 	int state;
+
+	char* mmap_private_data;
 };
 
 struct _qhgpu_request_item {
@@ -126,6 +128,7 @@ static void qhgpu_request_item_constructor(void *data) {
 
 static void qhgpu_sync_call_data_constructor(void *data) {
 	struct _qhgpu_sync_call_data *d = (struct _qhgpu_sync_call_data*) data;
+
 	if (d) {
 		memset(d, 0, sizeof(struct _qhgpu_sync_call_data));
 	}
@@ -133,6 +136,7 @@ static void qhgpu_sync_call_data_constructor(void *data) {
 
 static void qhgpu_request_constructor(void* data) {
 	struct qhgpu_request *req = (struct qhgpu_request*) data;
+
 	if (req) {
 		memset(req, 0, sizeof(struct qhgpu_request));
 		req->id = qhgpu_next_request_id();
@@ -182,7 +186,6 @@ int qhgpu_open(struct inode *inode, struct file *filp) {
  * offlist = 0: keep the request in the list
  */
 static struct _qhgpu_request_item* find_request(int id, int offlist) {
-
 	struct _qhgpu_request_item *pos, *n;
 
 	spin_lock(&(qhgpudev.rtdreqlock));
@@ -201,7 +204,6 @@ static struct _qhgpu_request_item* find_request(int id, int offlist) {
 }
 
 ssize_t qhgpu_write(struct file *filp, const char __user *buf, size_t count, loff_t *fpos) {
-
 	struct qhgpu_ku_response kuresp;
 	struct _qhgpu_request_item *item;
 	ssize_t ret = 0;
@@ -256,9 +258,7 @@ ssize_t qhgpu_write(struct file *filp, const char __user *buf, size_t count, lof
 	return ret;
 }
 
-static void fill_ku_request(struct qhgpu_ku_request *kureq,
-		struct qhgpu_request *req) {
-
+static void fill_ku_request(struct qhgpu_ku_request *kureq, struct qhgpu_request *req) {
 	kureq->id = req->id;
 	memcpy(kureq->service_name, req->service_name, QHGPU_SERVICE_NAME_SIZE);
 
@@ -296,8 +296,7 @@ static void fill_ku_request(struct qhgpu_ku_request *kureq,
 	kureq->datasize = req->udatasize;
 }
 
-static int set_gpu_mempool(char __user *buf)
-{
+static int set_gpu_mempool(char __user *buf) {
 	struct qhgpu_gpu_mem_info gb;
 	struct _qhgpu_mempool *gmp = &qhgpudev.gmpool;
 	int i;
@@ -359,12 +358,12 @@ static int set_gpu_mempool(char __user *buf)
 	}
 	unlock_and_out:
 	spin_unlock(&(qhgpudev.gmpool_lock));
+
 	return err;
 }
 //static long device_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 
-ssize_t qhgpu_read(struct file *filp, char __user *buf, size_t c, loff_t *fpos)
-{
+ssize_t qhgpu_read(struct file *filp, char __user *buf, size_t c, loff_t *fpos) {
 	ssize_t ret = 0;
 	struct list_head *r;
 	struct _qhgpu_request_item *item;
@@ -467,18 +466,74 @@ default:	//
 	return err;
 }
 
+/*
+ * vm_ops
+ * for KU communication by mmap
+ */
+
+//can track mmap by open or close
+/*void vm_open(struct vm_area_struct *vma) {
+	printk("vm_open\n");
+	//printk(KERN_NOTICE "Simple VMA open, virt %lx, phys %lx\n", vma->vm_start, vma->vm_pgoff << PAGE_SHIFT);
+}
+
+void vm_close(struct vm_area_struct *vma) {
+	printk("vm_close\n");
+}*/
+
+/* fault is called the first time a memory area is accessed which is not in memory,
+ * it does the actual mapping between kernel and user space memory
+ */
+static int vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
+	struct page *page;
+	char* mmap_buf = (char*) vma->vm_private_data;
+
+	printk("vm_fault called info=0x%8X\n", (unsigned int) mmap_buf);
+	printk("vm_fault vma info. {%p, %p}\n", vma, vma->vm_private_data);
+
+	/* the data is in vma->vm_private_data */
+	if (!mmap_buf) {
+		printk("mmap_fault return VM_FAULT_OOM\n");
+		return VM_FAULT_OOM;
+	}
+
+	page = virt_to_page(mmap_buf);
+
+	if (!page) {
+		printk("vm_fault return VM_FAULT_SIGBUS\n");
+		return VM_FAULT_SIGBUS;
+	}
+
+	get_page(page);
+	vmf->page = page;
+
+	printk("vm_fault return 0\n");
+	return 0;
+}
+
+struct vm_operations_struct qhgpu_vm_ops = {
+		//.open = vm_open,
+		//.close = vm_close,
+		.fault = vm_fault,
+};
+// END vm_ops ////////////////////////////////
+
 static int qhgpu_mmap(struct file *filp, struct vm_area_struct *vma) {
-	/*
-	 if (vma->vm_end - vma->vm_start != KGPU_MMAP_SIZE) {
-	 qhgpu_log(KGPU_LOG_ALERT,
-	 "mmap size incorrect from 0x$lX to 0x%lX with "
-	 "%lu bytes\n", vma->vm_start, vma->vm_end,
-	 vma->vm_end-vma->vm_start);
-	 return -EINVAL;
-	 }
-	 vma->vm_ops = &qhgpu_vm_ops;
-	 vma->vm_flags |= VM_RESERVED;
-	 set_vm(vma);*/
+	printk("qhgpu_mmap. filep data. {%p, %p}\n", filp, filp->private_data);
+	printk("qhgpu_mmap vma info. {%p, %p}\n", vma, vma->vm_private_data);
+
+	vma->vm_ops = &qhgpu_vm_ops;
+	vma->vm_flags |= VM_RESERVED;
+	/* assign the file private data to the vm private data */
+
+	/////////////////
+	filp->private_data = (char *)get_zeroed_page(GFP_KERNEL);
+
+	qhgpudev.mmap_private_data = filp->private_data;
+	////////////
+
+	vma->vm_private_data = filp->private_data;
+	//vm_open(vma);
 
 	return 0;
 }
@@ -487,22 +542,26 @@ static unsigned int qhgpu_poll(struct file *filp, poll_table *wait) {
 	unsigned int mask = 0;
 
 	spin_lock(&(qhgpudev.reqlock));
-
 	poll_wait(filp, &(qhgpudev.reqq), wait);// wait_queue_head_t type reqq wait
 
 	if (!list_empty(&(qhgpudev.reqs)))			// check request list
 		mask |= POLLIN | POLLRDNORM;			// queue readable
-
-	mask |= POLLOUT | POLLWRNORM;				// queue writable
-
+		mask |= POLLOUT | POLLWRNORM;				// queue writable
 	spin_unlock(&(qhgpudev.reqlock));
 
 	return mask;
 }
 
-static struct file_operations qhgpu_ops = { .owner = THIS_MODULE, .open =
-		qhgpu_open, .read = qhgpu_read, .unlocked_ioctl = qhgpu_ioctl, .write =
-		qhgpu_write, .poll = qhgpu_poll, .mmap = qhgpu_mmap };
+static struct file_operations qhgpu_ops = {
+		.owner = THIS_MODULE,
+		.open = qhgpu_open,
+		.read = qhgpu_read,
+		.unlocked_ioctl = qhgpu_ioctl,
+		.write = qhgpu_write,
+		.poll = qhgpu_poll,
+		.mmap = qhgpu_mmap
+		//.llseek = no_llseek,
+};
 
 static int qhgpu_init(void) {
 	int result = 0;
@@ -567,14 +626,14 @@ static int qhgpu_init(void) {
 	memset(&qhgpudev.gmpool, 0, sizeof(struct _qhgpu_mempool));
 
 	/*
-	 // dev class
-	 qhgpudev.cls = class_create(THIS_MODULE, "QHGPU_DEV_NAME");
-	 if (IS_ERR(qhgpudev.cls)) {
-	 result = PTR_ERR(qhgpudev.cls);
-	 printk("can't create dev class for KGPU\n");
-	 return result;
-	 }
-	 */
+	// dev class
+	qhgpudev.cls = class_create(THIS_MODULE, "QHGPU_DEV_NAME");
+	if (IS_ERR(qhgpudev.cls)) {
+	result = PTR_ERR(qhgpudev.cls);
+	printk("can't create dev class for KGPU\n");
+	return result;
+	}
+	*/
 
 	// alloc dev
 	result = alloc_chrdev_region(&qhgpudev.devno, 0, 1, QHGPU_DEV_NAME);
@@ -605,6 +664,7 @@ static int qhgpu_init(void) {
 
 	return result;
 }
+
 static int qhgpu_clean(void) {
 	device_destroy(qhgpudev.cls, qhgpudev.devno);
 	cdev_del(&qhgpudev.cdev);
@@ -640,6 +700,7 @@ static int sync_callback(struct qhgpu_request *req) {
 	wake_up_interruptible(&data->queue);
 	return 0;
 }
+
 /*
  * Sync GPU call
  */
@@ -673,7 +734,7 @@ int qhgpu_call_sync(struct qhgpu_request *req) {
 	init_waitqueue_head(&data->queue);
 
 	req->kdata = data;
-	//req->callback = sync_callback;
+	req->callback = sync_callback;
 
 	spin_lock(&(qhgpudev.reqlock));
 
@@ -705,7 +766,8 @@ void* qhgpu_vmalloc(unsigned long nbytes) {
 	idx = bitmap_find_next_zero_area(qhgpudev.gmpool.bitmap,
 			qhgpudev.gmpool.nunits, 0, req_nunits, 0);
 
-	printk("idx: %ul, gmpool.nunits: %u ,%ul, %u \n", idx, qhgpudev.gmpool.nunits, nbytes, req_nunits);
+	printk("idx: %ul, gmpool.nunits: %u ,%ul, %u \n", idx,
+			qhgpudev.gmpool.nunits, nbytes, req_nunits);
 
 	if (idx < qhgpudev.gmpool.nunits) {
 		printk("bitmap_set start \n");
@@ -749,6 +811,13 @@ void qhgpu_vfree(void *p) {
 	spin_unlock(&qhgpudev.gmpool_lock);
 }
 EXPORT_SYMBOL_GPL( qhgpu_vfree);
+
+char* qhgpu_mmap_addr_pass() {
+	printk("qhgpu_mmap_addr_pass {%p}\n", qhgpudev.mmap_private_data);
+
+	return qhgpudev.mmap_private_data;
+}
+EXPORT_SYMBOL_GPL(qhgpu_mmap_addr_pass);
 
 static int __init mod_init(void) {
 	printk("init_mod\n");
