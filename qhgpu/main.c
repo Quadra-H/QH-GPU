@@ -508,20 +508,6 @@ static int vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 		return VM_FAULT_SIGBUS;
 	}
 
-static int qhgpu_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	/*
-	if (vma->vm_end - vma->vm_start != KGPU_MMAP_SIZE) {
-	qhgpu_log(KGPU_LOG_ALERT,
-		 "mmap size incorrect from 0x$lX to 0x%lX with "
-		 "%lu bytes\n", vma->vm_start, vma->vm_end,
-		 vma->vm_end-vma->vm_start);
-	return -EINVAL;
-    }
-    vma->vm_ops = &qhgpu_vm_ops;
-    vma->vm_flags |= VM_RESERVED;
-    set_vm(vma);
-    */
 	get_page(page);
 	vmf->page = page;
 
