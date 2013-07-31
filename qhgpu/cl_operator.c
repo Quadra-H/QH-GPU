@@ -58,18 +58,18 @@ void* gpu_alloc_pinned_mem(){
 		cmDevData = clCreateBuffer(Context, CL_MEM_READ_WRITE, QHGPU_MEM_SIZE, NULL, &clErrNum);
 		if(clErrNum != CL_SUCCESS){
 			printf("exception in gpu_init -> clCreateBuffer of device");
-			return -1;
+			return (void*)-1;
 		}
 
 		clErrNum = clEnqueueWriteBuffer(CommandQueue, cmDevData, CL_FALSE, 0, QHGPU_MEM_SIZE, h_data, 0, NULL, NULL);
 		if(clErrNum != CL_SUCCESS){
 			printf("exception in gpu_init -> clCreateBuffer of device");
-			return -1;
+			return (void*)-1;
 		}
 		clErrNum = clFinish(CommandQueue);
 		if(clErrNum != CL_SUCCESS){
 			printf("exception in gpu_init -> clFinish");
-			return -1;
+			return (void*)-1;
 		}
 
 

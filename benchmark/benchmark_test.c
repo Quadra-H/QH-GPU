@@ -30,23 +30,18 @@
 
 #define BATCH_NR 2
 
-int mycb(struct qhgpu_request *req)
-{
+int mycb(struct qhgpu_request *req) {
 	printk("mycb callback\n");
 	//struct completion *c = (struct completion*)req->kdata;
 	//complete(c);
 	return 0;
 }
 
+int test_data = 777;
 
-
-int test_data=777;
-
-static int test_gpu_callback(struct qhgpu_request *req)
-{
-	printk("test_gpu_callback\n");
-	int *data = (int *)req->udata;
-	printk("test_gpu_callback: %d\n",*data);
+static int test_gpu_callback(struct qhgpu_request *req) {
+	int *data = (int *) req->udata;
+	printk("test_gpu_callback: %d\n", *data);
 	return 0;
 }
 
@@ -57,9 +52,9 @@ static int __init minit(void)
 	struct completion cs[BATCH_NR];
 
 	int i;
-	struct timeval t0, t1;
-	long tt;
-	unsigned long sz;
+	struct timeval; //t0, t1;
+//	long tt;
+//	unsigned long sz;
 
 	memset(rs, 0, sizeof(struct qhgpu_request*)*BATCH_NR);
 	memset(bufs, 0, sizeof(void*)*BATCH_NR);
@@ -94,31 +89,28 @@ static int __init minit(void)
 
 	printk("done allocations, start first test\n");
 
-
-
-
 	/*char *buf = qhgpu_vmalloc(sizeof(int));
-	struct qhgpu_request *req  = qhgpu_alloc_request();
-	if (!req) {
-		qhgpu_vfree(buf);
-		printk("can't allocate request\n");
-		return -EFAULT;
-	}
-	req->in = buf;
-	req->out = buf;
-	req->insize = sizeof(int);
-	req->outsize = sizeof(int);
-	req->udatasize = sizeof(int);
-	req->udata = buf;
-	req->callback = test_gpu_callback;
+	 struct qhgpu_request *req  = qhgpu_alloc_request();
+	 if (!req) {
+	 qhgpu_vfree(buf);
+	 printk("can't allocate request\n");
+	 return -EFAULT;
+	 }
+	 req->in = buf;
+	 req->out = buf;
+	 req->insize = sizeof(int);
+	 req->outsize = sizeof(int);
+	 req->udatasize = sizeof(int);
+	 req->udata = buf;
+	 req->callback = test_gpu_callback;
 
 
-	printk("data copy start \n");
-	memcpy(req->udata, &test_data, sizeof(test_data));
-	strcpy(req->service_name, "test module");
-	printk("data copy end \n");
-	qhgpu_call_sync(req);
-	*/
+	 printk("data copy start \n");
+	 memcpy(req->udata, &test_data, sizeof(test_data));
+	 strcpy(req->service_name, "test module");
+	 printk("data copy end \n");
+	 qhgpu_call_sync(req);
+	 */
 
 	qhgpu_call_sync(rs[0]);
 
@@ -127,32 +119,30 @@ static int __init minit(void)
 	/*rs[0]->id = qhgpu_next_request_id();
 
 
-	printk("done async, start sync\n");
-	for (sz=MIN_MEM_SZ; sz<=MAX_MEM_SZ; sz=(sz?sz<<1:PAGE_SIZE)) {
-		rs[0]->insize = sz;
-		rs[0]->outsize = sz;
+	 printk("done async, start sync\n");
+	 for (sz=MIN_MEM_SZ; sz<=MAX_MEM_SZ; sz=(sz?sz<<1:PAGE_SIZE)) {
+	 rs[0]->insize = sz;
+	 rs[0]->outsize = sz;
 
-		do_gettimeofday(&t0);
-		qhgpu_call_sync(rs[0]);
-		do_gettimeofday(&t1);
+	 do_gettimeofday(&t0);
+	 qhgpu_call_sync(rs[0]);
+	 do_gettimeofday(&t1);
 
-		tt = 1000000*(t1.tv_sec-t0.tv_sec) +
-				((long)(t1.tv_usec) - (long)(t0.tv_usec));
+	 tt = 1000000*(t1.tv_sec-t0.tv_sec) +
+	 ((long)(t1.tv_usec) - (long)(t0.tv_usec));
 
-		printk("SYNC  SIZE: %10lu B, TIME: %10lu MS, OPS: %8lu, BW: %8lu MB/S\n",
-				sz, tt, 1000000/tt, sz/tt);
-		rs[0]->id = qhgpu_next_request_id();
-	}
-	printk("done sync\n");*/
+	 printk("SYNC  SIZE: %10lu B, TIME: %10lu MS, OPS: %8lu, BW: %8lu MB/S\n",
+	 sz, tt, 1000000/tt, sz/tt);
+	 rs[0]->id = qhgpu_next_request_id();
+	 }
+	 printk("done sync\n");*/
 	/**/
 
-
-cleanup:
+	cleanup:
 	for (i=0; i<BATCH_NR; i++) {
 		if (rs[i]) qhgpu_free_request(rs[i]);
 		if (bufs[i]) qhgpu_vfree(bufs[i]);
 	}
-
 
 	printk("done test\n");
 	return 0;
@@ -160,10 +150,10 @@ cleanup:
 
 static void __exit mexit(void)
 {
-    printk("unload\n");
+	printk("unload\n");
 }
 
-module_init(minit);
-module_exit(mexit);
+module_init( minit);
+module_exit( mexit);
 
 MODULE_LICENSE("GPL");

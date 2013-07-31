@@ -30,7 +30,8 @@
 
 
 
-int test_data=777;
+// mapped memory address
+static char* mmap_addr;
 const int ARRAY_SIZE = 1000;
 static float* result;
 static float* a;
