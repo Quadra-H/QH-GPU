@@ -17,11 +17,6 @@
 #include "list.h"
 #include "connector.h"
 
-struct _qhgpu_sitem {
-	struct qhgpu_service *s;
-	void* libhandle;
-	struct list_head list;
-};
 LIST_HEAD(services);
 
 
@@ -35,18 +30,22 @@ static struct _qhgpu_sitem *lookup_qhgpu_sitem(const char *name)
 
 	list_for_each(e, &services) {
 		i = list_entry(e, struct _qhgpu_sitem, list);
-		if (!strncmp(name, i->s->name, QHGPU_SERVICE_NAME_SIZE))
+		if (!strncmp(name, i->s->name, QHGPU_SERVICE_NAME_SIZE)){
+			printf("lookup_qhgpu_sitem: %s \n",i->s->name);
 			return i;
+		}
 	}
 	return NULL;
 }
 
-struct qhgpu_service *qc_lookup_service(const char *name)
+struct _qhgpu_sitem *qc_lookup_service(const char *name)
 {
-	struct _qhgpu_sitem *i = lookup_qhgpu_sitem(name);
-	if (!i)
+	struct _qhgpu_sitem *item = lookup_qhgpu_sitem(name);
+	if (!item){
 		return NULL;
-	return i->s;
+	}
+	printf("qc_lookup_service: %s \n",item->s->name);
+	return item;
 }
 
 int qc_register_service(struct qhgpu_service *s, void *libhandle)
@@ -101,6 +100,8 @@ int qc_load_service(const char *libpath)
 		init = (fn_init_service)dlsym(lh, SERVICE_INIT);
 		if (!init)
 		{
+			printf("Warning: %s has no service %s\n",
+					libpath, ((err=dlerror()) == NULL?"": err));
 			fprintf(stderr,
 					"Warning: %s has no service %s\n",
 					libpath, ((err=dlerror()) == NULL?"": err));
@@ -108,12 +109,17 @@ int qc_load_service(const char *libpath)
 		} else {
 			if (init(lh, qc_register_service))
 			{
+				printf("Warning: %s failed to register service\n",
+						libpath);
 				fprintf(stderr,
 						"Warning: %s failed to register service\n",
 						libpath);
 				dlclose(lh);
-			} else
+			} else{
+				printf("qc_load_service success !!\n");
 				r = 0;
+			}
+
 		}
 	}
 	return r;

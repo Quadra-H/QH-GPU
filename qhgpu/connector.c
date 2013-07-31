@@ -10,7 +10,7 @@
 #include <string.h>
 #include <poll.h>
 #include "connector.h"
-#include "list.h"
+
 #include "qhgpu.h"
 #include "qhgpu_log.h"
 #include "cl_operator.h"
@@ -114,6 +114,7 @@ static int qc_init(void)
 	printf("qhgpu_gpu_mem_info len  : %d",len);
 	/**/
 	/* tell kernel the buffers */
+	// qhgpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	r = ioctl(devfd, QHGPU_IOC_SET_GPU_BUFS, (unsigned long)&hostbuf);
 	if (r < 0) {
 		printf("device write fail!");
@@ -169,6 +170,10 @@ static void qc_init_service_request(struct _qhgpu_sritem *item,
 			       struct qhgpu_ku_request *kureq)
 {
 
+
+	printf("qc_init_service_request !!! \n");
+
+
 	//// add to all_reqs for request empty check
 	list_add_tail(&item->glist, &all_reqs);
 
@@ -182,17 +187,30 @@ static void qc_init_service_request(struct _qhgpu_sritem *item,
 	item->sr.outsize = kureq->outsize;
 	item->sr.datasize = kureq->datasize;
 	item->sr.stream_id = -1;
-	item->sr.s = qc_lookup_service(kureq->service_name);
-	if (!item->sr.s) {
+
+	printf("qc_init_service_request lookup service start !!! %s \n",kureq->service_name);
+
+	struct _qhgpu_sitem *temp = qc_lookup_service(kureq->service_name);
+	//printf("qc_init_service_request lookup service end !!! %s \n",temp->s->name);
+
+	//item->sr.s= qc_lookup_service(kureq->service_name);
+
+	//printf("qc_init_service_request lookup service end !!! %s \n",item->sr.s->name);
+	if (!temp) {
 		printf("can't find service\n");
 		qc_fail_request(item, QHGPU_NO_SERVICE);
 	} else {
-		item->sr.s->compute_size(&item->sr);				//// [?]
+
+		item->sr.s = temp->s;//qc_lookup_service(kureq->service_name);
+		printf("qc_init_service_request compute_size !!! \n");
+		//item->sr.s->compute_size(&item->sr);				//// [?]
 		item->sr.state = QHGPU_REQ_INIT;
 		item->sr.errcode = 0;
 
+		printf("qc_init_service_request add_list start !!! \n");
 		//// add to init_reqs
 		list_add_tail(&item->list, &init_reqs);
+		printf("qc_init_service_request add_list END !!! \n");
 	}
 }
 
@@ -211,12 +229,12 @@ static int qc_get_next_service_request(void)
 	pfd.revents = 0;
 
 
-	printf("qc_get_next_service_request start!!! \n");
+	//printf("qc_get_next_service_request start!!! \n");
 
 	err = poll(&pfd, 1, list_empty(&all_reqs)? -1:0);	/// if list is empty polling (timeout -1)
 																/// qhgpudev.reqq poll_wait interrupted by call
 
-	printf("qc_get_next_service_request err: %d \n",err);
+	//printf("qc_get_next_service_request err: %d \n",err);
 
 	if (err == 0 || (err && !(pfd.revents & POLLIN)) ) {
 		return -1;
@@ -266,52 +284,6 @@ static int qc_get_next_service_request(void)
 
 
 
-
-static int qc_request_alloc_mem(struct _qhgpu_sritem *sreq)
-{
-
-	printf("qc_request_alloc_mem !!!\n");
-	int r = 0;
-
-	///	alloc service on gpu memory
-	/*
-	r = gpu_alloc_device_mem(&sreq->sr);
-	if (r) {
-		return -1;
-	} else {*/
-		sreq->sr.state = QHGPU_REQ_MEM_DONE;
-		list_del(&sreq->list);
-		list_add_tail(&sreq->list, &memdone_reqs);
-		return 0;
-	//}
-
-	return 0;
-}
-
-static int qc_prepare_exec(struct _qhgpu_sritem *sreq)
-{
-	printf("qc_prepare_exec !!!\n");
-	int r;
-
-	/// alloc stream
-	/*if (gpu_alloc_stream(&sreq->sr)) {
-		r = -1;
-	} else {
-
-		// copy host to device
-		r = sreq->sr.s->prepare(&sreq->sr);
-		if (r) {
-			printf("%d fails prepare\n", sreq->sr.id);
-			qc_fail_request(sreq, r);
-		} else {*/
-			sreq->sr.state = QHGPU_REQ_PREPARED;
-			list_del(&sreq->list);
-			list_add_tail(&sreq->list, &prepared_reqs);
-		//}
-	//}
-	return r;
-}
-
 static int qc_launch_exec(struct _qhgpu_sritem *sreq)
 {
 
@@ -332,39 +304,19 @@ static int qc_launch_exec(struct _qhgpu_sritem *sreq)
 static int qc_post_exec(struct _qhgpu_sritem *sreq)
 {
 	int r = 1;
+
 	printf("qc_post_exec !!!\n");
 
-	//// check stream done
-	/*if (gpu_execution_finished(&sreq->sr)) {
+	if (!(r = sreq->sr.s->post(&sreq->sr))) {
+		sreq->sr.state = QHGPU_REQ_POST_EXEC;
+		list_del(&sreq->list);
+		list_add_tail(&sreq->list, &post_exec_reqs);
+	}
 
-		// copy result device to host
-		if (!(r = sreq->sr.s->post(&sreq->sr))) {*/
-			sreq->sr.state = QHGPU_REQ_POST_EXEC;
-			list_del(&sreq->list);
-			list_add_tail(&sreq->list, &post_exec_reqs);
-	/*	}
-		else {
-			printf("%d fails post\n", sreq->sr.id);
-			qc_fail_request(sreq, r);
-		}
-	}*/
+
 	return r;
 }
 
-static int qc_finish_post(struct _qhgpu_sritem *sreq)
-{
-	printf("qc_finish_post !!!\n");
-
-	//// check stream done
-	//if (gpu_post_finished(&sreq->sr)) {
-		sreq->sr.state = QHGPU_REQ_DONE;
-		list_del(&sreq->list);
-		list_add_tail(&sreq->list, &done_reqs);
-
-		return 0;
-	//}
-	return 1;
-}
 
 
 
@@ -376,7 +328,7 @@ static int qc_send_response(struct qhgpu_ku_response *resp)
 	printf("qc_send_response: %d \n",resp->id);
 
 	/// write result to device driver
-	ssc(write(devfd, resp, sizeof(struct qhgpu_ku_response)));
+	write(devfd, resp, sizeof(struct qhgpu_ku_response));
 	return 0;
 }
 
@@ -397,6 +349,7 @@ static int qc_service_done(struct _qhgpu_sritem *sreq)
     list_del(&sreq->glist);
 
     qc_free_service_request(sreq);
+    printf("qc_service_done return !!!\n");
     return 0;
 }
 ////////////////////////////////////////////////////////////////////////////////////
@@ -424,12 +377,9 @@ static int qc_main_loop()
 {
 	while (qc_loop_continue)
 	{
-		__qc_process_request(qc_service_done, &done_reqs, 0);
-		__qc_process_request(qc_finish_post, &post_exec_reqs, 0);
+		__qc_process_request(qc_service_done, &post_exec_reqs, 0);
 		__qc_process_request(qc_post_exec, &running_reqs, 1);
-		__qc_process_request(qc_launch_exec, &prepared_reqs, 1);
-		__qc_process_request(qc_prepare_exec, &memdone_reqs, 1);
-		__qc_process_request(qc_request_alloc_mem, &init_reqs, 0);
+		__qc_process_request(qc_launch_exec, &init_reqs, 0);
 
 		qc_get_next_service_request();
     }
@@ -440,9 +390,13 @@ int main(int argc, char *argv[])
 {
 	int c;
 	qhgpudev = "/dev/qhgpu";
+	service_lib_dir = "./";
 	qc_init();
+	qc_load_all_services(service_lib_dir);
 	qc_main_loop();
 	qc_finit();
+
+
 	return 0;
 }
 

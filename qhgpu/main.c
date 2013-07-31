@@ -33,8 +33,8 @@
 #include <linux/types.h>
 #include "cl_helper.h"
 
-
-#define QHGPU_BUF_UNIT_SIZE (50*1024)
+#define PAGE_SIZE 512
+#define QHGPU_BUF_UNIT_SIZE (1024*50)
 #define QHGPU_BUF_NR_FRAMES_PER_UNIT (QHGPU_BUF_UNIT_SIZE/PAGE_SIZE)
 
 
@@ -284,7 +284,7 @@ ssize_t qhgpu_write(struct file *filp, const char __user *buf, size_t count, lof
 			kmem_cache_free(qhgpu_request_item_cache, item);
 		}
 	}
-
+	printk("qhgpu_write ret !! %d\n",ret);
 	return ret;
 }
 
@@ -349,13 +349,14 @@ static int set_gpu_mempool(char __user *buf)
 
 	spin_lock(&(qhgpudev.gmpool_lock));
 
+	// user to kernel copy_from_user(to, from, number of bytes to copy);
 	copy_from_user(&gb, buf, sizeof(struct qhgpu_gpu_mem_info));
 
-	/* set up pages mem */
+	// set up pages mem
 	gmp->uva = (unsigned long)(gb.uva);
 	gmp->npages = gb.size/PAGE_SIZE;
 	if (!gmp->pages) {
-		gmp->pages = kmalloc(sizeof(struct page*)*gmp->npages, GFP_KERNEL);
+		gmp->pages = kmalloc(sizeof(struct page*)*gmp->npages, GFP_KERNEL);	// kernel memory alloc
 		if (!gmp->pages) {
 			printk("run out of memory for gmp pages\n");
 			err = -ENOMEM;
@@ -371,7 +372,7 @@ static int set_gpu_mempool(char __user *buf)
 
 
 
-	printk("gmp->npages : %d , QHGPU_BUF_NR_FRAMES_PER_UNIT: %d\n",gmp->npages,QHGPU_BUF_NR_FRAMES_PER_UNIT);
+	printk("gmp->npages : %d , QHGPU_BUF_NR_FRAMES_PER_UNIT: %d PAGE_SIE: %d\n",gmp->npages,QHGPU_BUF_NR_FRAMES_PER_UNIT,PAGE_SIZE);
 	/* set up bitmap */
 	gmp->nunits = gmp->npages/QHGPU_BUF_NR_FRAMES_PER_UNIT;
 	if (!gmp->bitmap) {
@@ -539,7 +540,8 @@ static int qhgpu_mmap(struct file *filp, struct vm_area_struct *vma)
     }
     vma->vm_ops = &qhgpu_vm_ops;
     vma->vm_flags |= VM_RESERVED;
-    set_vm(vma);*/
+    set_vm(vma);
+    */
 
     return 0;
 }
@@ -778,7 +780,11 @@ int qhgpu_call_sync(struct qhgpu_request *req)
 	init_waitqueue_head(&data->queue);
 
 	req->kdata = data;
-	//req->callback = sync_callback;
+	req->callback = sync_callback;
+
+
+	printk("in size : %d \n", sizeof(req->in));
+
 
 
 
@@ -809,32 +815,94 @@ int qhgpu_call_sync(struct qhgpu_request *req)
 }
 EXPORT_SYMBOL_GPL(qhgpu_call_sync);
 
+
+
+
+
+/*
+ * Async GPU call.
+ */
+int qhgpu_call_async(struct qhgpu_request *req)
+{
+
+	struct _qhgpu_request_item *item;
+	if (unlikely(qhgpudev.state == QHGPU_TERMINATED)) {
+		printk("qhgpu is terminated, no request accepted any more\n");
+		return QHGPU_TERMINATED;
+	}
+
+	item = kmem_cache_alloc(qhgpu_request_item_cache, GFP_KERNEL);
+
+	if (!item) {
+		printk("out of memory for qhgpu request\n");
+		return -ENOMEM;
+	}
+	item->r = req;
+
+	spin_lock(&(qhgpudev.reqlock));
+
+	INIT_LIST_HEAD(&item->list);
+	list_add_tail(&item->list, &(qhgpudev.reqs));
+	wake_up_interruptible(&(qhgpudev.reqq));
+
+	spin_unlock(&(qhgpudev.reqlock));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qhgpu_call_async);
+
+
+
+
+
+
+
+
 void* qhgpu_vmalloc(unsigned long nbytes)
 {
-    unsigned int req_nunits = DIV_ROUND_UP(nbytes, QHGPU_BUF_UNIT_SIZE);
-    void *p = NULL;
-    unsigned long idx;
+	unsigned int req_nunits = DIV_ROUND_UP(nbytes, QHGPU_BUF_UNIT_SIZE);
+	void *p = NULL;
+	unsigned long idx;
 
-    spin_lock(&qhgpudev.gmpool_lock);
-    idx = bitmap_find_next_zero_area(
-    		qhgpudev.gmpool.bitmap, qhgpudev.gmpool.nunits, 0, req_nunits, 0);
-
-    printk("idx: %d, gmpool.nunits: %d ,%d,%d \n",idx,qhgpudev.gmpool.nunits,nbytes,req_nunits);
+	spin_lock(&qhgpudev.gmpool_lock);
 
 
-    if (idx < qhgpudev.gmpool.nunits) {
-    	printk("bitmap_set start \n");
-    	bitmap_set(qhgpudev.gmpool.bitmap, idx, req_nunits);
-    	printk("bitmap_set end \n");
+
+	/*
+	bitmap_find_next_zero_area - find a contiguous aligned zero area
+	@map: The address to base the search on
+	@size: The bitmap size in bits
+	@start: The bitnumber to start searching at
+	@nr: The number of zeroed bits we're looking for
+	@align_mask: Alignment mask for zero area
+
+	* The @align_mask should be one less than a power of 2; the effect is that
+	* the bit offset of all zero areas this function finds is multiples of that
+	* power of 2. A @align_mask of 0 means no alignment is required.
+	*/
+	idx = bitmap_find_next_zero_area(
+			qhgpudev.gmpool.bitmap, // map
+			qhgpudev.gmpool.nunits, // size
+			0, 							// start
+			req_nunits, 				// nr
+			0);							// align_mask
+
+
+	printk("idx: %d, gmpool.nunits: %d ,%d,%d \n",idx,qhgpudev.gmpool.nunits,nbytes,req_nunits);
+
+
+	if (idx < qhgpudev.gmpool.nunits) {
+		printk("bitmap_set start \n");
+		bitmap_set(qhgpudev.gmpool.bitmap, idx, req_nunits);
+		printk("bitmap_set end \n");
     	p = (void*)((unsigned long)(qhgpudev.gmpool.kva)
     			+ idx*QHGPU_BUF_UNIT_SIZE);
     	printk("qhgpudev.gmpool.kva p: %p \n",p);
     	qhgpudev.gmpool.alloc_sz[idx] = req_nunits;
-    } else {
-    	printk("out of GPU memory for malloc %lu\n",nbytes);
-    }
-    spin_unlock(&qhgpudev.gmpool_lock);
-    return p;
+	} else {
+		printk("out of GPU memory for malloc %lu\n",nbytes);
+	}
+	spin_unlock(&qhgpudev.gmpool_lock);
+	return p;
 }
 EXPORT_SYMBOL_GPL(qhgpu_vmalloc);
 

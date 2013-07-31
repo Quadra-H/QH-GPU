@@ -1,8 +1,16 @@
 LIBS := -lOpenCL
 
+SUBDIRS = lib
+
+
 obj-m += qhgpu.o
 
-all:	qhgpu connector
+all:	qhgpu connector $(SUBDIRS)
+
+.PHONY: $(SUBDIRS)
+
+$(SUBDIRS):
+	$(MAKE) -C $@ $(TARGET) kv=$(kv) BUILD_DIR=$(BUILD_DIR)
 
 qhgpu-objs := main.o
 
@@ -17,7 +25,7 @@ qhgpu_log:
 
 
 connector: qhgpu_log
-	gcc -c connector.c
+	gcc -c -g connector.c
 	gcc -c qhgpu_daemon.c
 	gcc -c cl_operator.c
 	g++ -L/opt/AMDAPP/lib/x86_64/ -I/opt/AMDAPP/include -o "qhgpu" cl_operator.o connector.o qhgpu_daemon.o $(LIBS)

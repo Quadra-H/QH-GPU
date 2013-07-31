@@ -11,12 +11,28 @@
 #define __CONNECTOR_H__
 
 #include "qhgpu.h"
+#include "list.h"
 
 
 
+
+struct qhgpu_service {
+    char name[QHGPU_SERVICE_NAME_SIZE];
+    int sid;
+    int (*compute_size)(struct qhgpu_service_request *sreq);
+    int (*prepare)(struct qhgpu_service_request *sreq);
+    int (*launch)(struct qhgpu_service_request *sreq);
+    int (*post)(struct qhgpu_service_request *sreq);
+};
+
+struct _qhgpu_sitem {
+	struct qhgpu_service *s;
+	void* libhandle;
+	struct list_head list;
+};
 
 #ifndef PAGE_SIZE
-#define PAGE_SIZE 1024
+#define PAGE_SIZE (1024*1024*2)
 #endif
 
 #ifdef __cplusplus

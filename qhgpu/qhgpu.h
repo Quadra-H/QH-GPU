@@ -58,7 +58,7 @@ struct qhgpu_ku_response {
 
 /* the NR will not be used */
 #define QHGPU_BUF_NR 1
-#define QHGPU_BUF_SIZE (100*1024)
+#define QHGPU_BUF_SIZE (1024*100)
 
 #define QHGPU_MMAP_SIZE KGPU_BUF_SIZE
 

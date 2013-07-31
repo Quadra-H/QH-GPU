@@ -10,14 +10,9 @@
 #ifndef __QHGPU_DAEMON_H__
 #define __QHGPU_DAEMON_H__
 
-struct qhgpu_service {
-    char name[QHGPU_SERVICE_NAME_SIZE];
-    int sid;
-    int (*compute_size)(struct qhgpu_service_request *sreq);
-    int (*launch)(struct qhgpu_service_request *sreq);
-    int (*prepare)(struct qhgpu_service_request *sreq);
-    int (*post)(struct qhgpu_service_request *sreq);
-};
+
+
+
 
 #define SERVICE_INIT "init_service"
 #define SERVICE_FINIT "finit_service"

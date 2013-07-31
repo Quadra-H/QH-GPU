@@ -1,5 +1,6 @@
 0x47be1158	qhgpu_vmalloc	/root/git/QH-GPU/qhgpu/qhgpu	EXPORT_SYMBOL_GPL
 0x8356a354	qhgpu_call_sync	/root/git/QH-GPU/qhgpu/qhgpu	EXPORT_SYMBOL_GPL
+0xdca3ba0a	qhgpu_call_async	/root/git/QH-GPU/qhgpu/qhgpu	EXPORT_SYMBOL_GPL
 0xa0ddadf5	user_call_test	/root/git/QH-GPU/qhgpu/qhgpu	EXPORT_SYMBOL_GPL
 0x021ac07b	qhgpu_next_request_id	/root/git/QH-GPU/qhgpu/qhgpu	EXPORT_SYMBOL_GPL
 0x4745e738	user_callback_test	/root/git/QH-GPU/qhgpu/qhgpu	EXPORT_SYMBOL_GPL
