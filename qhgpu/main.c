@@ -263,6 +263,14 @@ static void fill_ku_request(struct qhgpu_ku_request *kureq, struct qhgpu_request
 	kureq->id = req->id;
 	memcpy(kureq->service_name, req->service_name, QHGPU_SERVICE_NAME_SIZE);
 
+
+	//kureq->mmap_addr = qhgpudev.mmap_private_data;
+	kureq->kmmap_addr = req->kmmap_addr;
+	kureq->mmap_size = req->mmap_size;
+
+
+
+
 	//////////////////[?]
 	if (ADDR_WITHIN(req->in, qhgpudev.gmpool.kva,
 			qhgpudev.gmpool.npages<<PAGE_SHIFT)) {
@@ -295,6 +303,9 @@ static void fill_ku_request(struct qhgpu_ku_request *kureq, struct qhgpu_request
 	kureq->insize = req->insize;
 	kureq->outsize = req->outsize;
 	kureq->datasize = req->udatasize;
+
+
+	printk("{%p} fill_ku_request \n",req->mmap_addr);
 }
 
 static int set_gpu_mempool(char __user *buf) {
@@ -489,19 +500,27 @@ void vm_close(struct vm_area_struct *vma) {
  * it does the actual mapping between kernel and user space memory
  */
 static int vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
+
+
+
 	struct page *page;
 	char* mmap_buf = (char*) vma->vm_private_data;
 
 	printk("vm_fault called info=0x%8X\n", (unsigned int) mmap_buf);
 	printk("vm_fault vma info. {%p, %p}\n", vma, vma->vm_private_data);
 
-	/* the data is in vma->vm_private_data */
+
+	//vmf->page = my_page_at_index(vmf->pgoff);
+	//get_page(vmf->page);
+
+
+	// the data is in vma->vm_private_data
 	if (!mmap_buf) {
 		printk("mmap_fault return VM_FAULT_OOM\n");
 		return VM_FAULT_OOM;
 	}
 
-	page = virt_to_page(mmap_buf);
+	page = virt_to_page(mmap_buf+ ( vmf->pgoff << PAGE_SHIFT));
 
 	if (!page) {
 		printk("vm_fault return VM_FAULT_SIGBUS\n");
@@ -531,7 +550,8 @@ static int qhgpu_mmap(struct file *filp, struct vm_area_struct *vma) {
 	/* assign the file private data to the vm private data */
 
 	/////////////////
-	filp->private_data = (char *)get_zeroed_page(GFP_KERNEL);
+	filp->private_data = (char *)__get_free_pages(GFP_KERNEL, 10);
+
 
 	qhgpudev.mmap_private_data = filp->private_data;
 	////////////
@@ -741,7 +761,27 @@ int qhgpu_call_sync(struct qhgpu_request *req) {
 	req->callback = sync_callback;
 
 
-	printk("in size : %d \n", sizeof(req->in));
+
+
+
+	unsigned int* mmap_data = req->kmmap_addr;//qhgpudev.mmap_private_data;
+	printk("mmap_data size : %d %d \n", sizeof(req->kmmap_addr),req->mmap_size);
+
+
+	int i=0;
+	for(i=480;i<490;i++){
+		printk("mmap_data : %d \n", mmap_data[i]);
+	}
+
+
+
+
+
+
+
+
+
+
 
 
 

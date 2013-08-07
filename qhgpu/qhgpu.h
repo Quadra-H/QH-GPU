@@ -34,9 +34,10 @@ struct qhgpu_gpu_mem_info {
 
 struct qhgpu_ku_request {
     int id;
+    char *mmap_addr, *kmmap_addr;
     char service_name[QHGPU_SERVICE_NAME_SIZE];
     void *in, *out, *data;
-    unsigned long insize, outsize, datasize;
+    unsigned long insize, outsize, datasize, mmap_size;
 };
 
 /* qhgpu's errno */
@@ -59,7 +60,6 @@ struct qhgpu_ku_response {
 #define QHGPU_BUF_NR 1
 #define QHGPU_BUF_SIZE (1024*100)
 
-#define QHGPU_MMAP_SIZE QHGPU_BUF_SIZE
 
 #define QHGPU_DEV_NAME "qhgpu"
 
@@ -93,7 +93,9 @@ struct qhgpu_service_request {
     int id;
     void *hin, *hout, *hdata;
     void *din, *dout, *ddata;
-    unsigned long insize, outsize, datasize;
+    char* kmmap_addr;
+    char* mmap_addr;
+    unsigned long insize, outsize, datasize,mmap_size;
     int errcode;
     struct qhgpu_service *s;
     int block_x, block_y;
@@ -136,12 +138,13 @@ extern int qhgpu_next_request_id(void);
 typedef int (*qhgpu_callback)(struct qhgpu_request *req);
 
 struct qhgpu_request {
-    int id;
-    void *in, *out, *udata, *kdata;
-    unsigned long insize, outsize, udatasize, kdatasize;
-    char service_name[QHGPU_SERVICE_NAME_SIZE];
-    qhgpu_callback callback;
-    int errcode;
+	int id;
+	void *in, *out, *udata, *kdata;
+	char* mmap_addr, *kmmap_addr;
+	unsigned long insize, outsize, udatasize, kdatasize, mmap_size;
+	char service_name[QHGPU_SERVICE_NAME_SIZE];
+	qhgpu_callback callback;
+	int errcode;
 };
 /*
 extern int kgpu_call_sync(struct kgpu_request*);

@@ -216,6 +216,11 @@ static int __init minit(void) {
 
 
 
+	// init mmap_addr
+	mmap_addr = qhgpu_mmap_addr_pass();
+	memcpy(mmap_addr, "mmap_test!", 10);
+
+
 	memcpy(req->in, b, (ARRAY_SIZE-5) * ( sizeof( float ) ));			/// for test
 
 	qhgpu_call_sync(req);

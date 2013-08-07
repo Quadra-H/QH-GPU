@@ -59,7 +59,7 @@ LIST_HEAD(post_exec_reqs);
 LIST_HEAD(done_reqs);
 
 static int init_mmap() {
-	mmap_address = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, devfd, 0);
+	mmap_address = mmap(NULL, 1<<29, PROT_READ | PROT_WRITE, MAP_SHARED, devfd, 0);
 	if (mmap_address == MAP_FAILED) {
 		printf("address map failed.\n");
 		perror("mmap");
@@ -161,7 +161,7 @@ static void qc_init_service_request(struct _qhgpu_sritem *item,
 {
 
 
-	printf("qc_init_service_request !!! \n");
+	printf("qc_init_service_request !!! %p \n",kureq->mmap_addr);
 
 
 	//// add to all_reqs for request empty check
@@ -177,6 +177,10 @@ static void qc_init_service_request(struct _qhgpu_sritem *item,
 	item->sr.outsize = kureq->outsize;
 	item->sr.datasize = kureq->datasize;
 	item->sr.stream_id = -1;
+	item->sr.mmap_addr = kureq->mmap_addr;
+	item->sr.kmmap_addr = kureq->kmmap_addr;
+	item->sr.mmap_size = kureq->mmap_size;
+
 
 	printf("qc_init_service_request lookup service start !!! %s \n",kureq->service_name);
 
@@ -248,6 +252,7 @@ static int qc_get_next_service_request(void)
 				abort();
 			}
 		} else {
+			kureq.mmap_addr = mmap_address;
 			qc_init_service_request(sreq, &kureq);
 			return 0;
 		}
@@ -312,7 +317,7 @@ static int qc_post_exec(struct _qhgpu_sritem *sreq)
 
 ////////////////////////////////////////////////////////////////////////////////////
 // response
-////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////PAGE_SIZE/////////////////////////////////
 static int qc_send_response(struct qhgpu_ku_response *resp)
 {
 	printf("qc_send_response: %d \n",resp->id);

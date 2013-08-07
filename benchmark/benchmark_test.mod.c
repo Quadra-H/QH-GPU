@@ -18,12 +18,12 @@ static const struct modversion_info ____versions[]
 __used
 __attribute__((section("__versions"))) = {
 	{ 0xa8c16cf3, "module_layout" },
-	{ 0x8356a354, "qhgpu_call_sync" },
+	{ 0xed7f1fa9, "qhgpu_call_sync" },
 	{ 0xf432dd3d, "__init_waitqueue_head" },
 	{ 0x47be1158, "qhgpu_vmalloc" },
 	{ 0x82b1fee1, "qhgpu_vfree" },
-	{ 0x32c86d07, "qhgpu_free_request" },
-	{ 0x475871bb, "qhgpu_alloc_request" },
+	{ 0xffb88b, "qhgpu_free_request" },
+	{ 0xcf56f60f, "qhgpu_alloc_request" },
 	{ 0x27e1a049, "printk" },
 	{ 0xb4390f9a, "mcount" },
 };

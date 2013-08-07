@@ -19,7 +19,7 @@
 #define SERVICE_LIB_PREFIX "libsrv_"
 
 typedef int (*fn_init_service)(
-    void* libhandle, int (*reg_srv)(struct kgpu_service *, void*));
+    void* libhandle, int (*reg_srv)(struct qhgpu_service *, void*));
 typedef int (*fn_finit_service)(
     void* libhandle, int (*unreg_srv)(const char*));
 
