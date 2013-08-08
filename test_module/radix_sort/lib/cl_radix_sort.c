@@ -428,14 +428,16 @@ void cl_radix_sort(){
 
 	if (VERBOSE){
 		printf("Start storting %d keys\n",nkeys);
+		printf("nbcol: %d, nbrow: %d\n",nbcol,nbrow);
 	}
 
-	if (TRANSPOSE){
+	/*if (TRANSPOSE){
 		if (VERBOSE) {
 			printf("Transpose\n");
 		}
 		cl_radix_transpose(nbrow,nbcol);
 	}
+	*/
 
 	for(uint pass=0;pass<_PASS;pass++){
 		if (VERBOSE) {
@@ -456,12 +458,12 @@ void cl_radix_sort(){
 		cl_radix_reorder(pass);
 	}
 
-	if (TRANSPOSE){
+	/*if (TRANSPOSE){
 		if (VERBOSE) {
 			printf("Transpose back\n");
 		}
 		cl_radix_transpose(nbcol,nbrow);
-	}
+	}*/
 
 	sort_time=histo_time+scan_time+reorder_time+transpose_time;
 	if (VERBOSE){

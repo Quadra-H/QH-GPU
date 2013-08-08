@@ -506,8 +506,8 @@ static int vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 	struct page *page;
 	char* mmap_buf = (char*) vma->vm_private_data;
 
-	printk("vm_fault called info=0x%8X\n", (unsigned int) mmap_buf);
-	printk("vm_fault vma info. {%p, %p}\n", vma, vma->vm_private_data);
+	//printk("vm_fault called info=0x%8X ,", (unsigned int) mmap_buf);
+	//printk("vm_fault vma info. {%p, %p} , ", vma, vma->vm_private_data);
 
 
 	//vmf->page = my_page_at_index(vmf->pgoff);
@@ -530,7 +530,7 @@ static int vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 	get_page(page);
 	vmf->page = page;
 
-	printk("vm_fault return 0\n");
+	//printk("vm_fault return 0");
 	return 0;
 }
 
@@ -769,8 +769,8 @@ int qhgpu_call_sync(struct qhgpu_request *req) {
 
 
 	int i=0;
-	for(i=480;i<490;i++){
-		printk("mmap_data : %d \n", mmap_data[i]);
+	for(i=0;i<50;i++){
+		printk(" %d , ", mmap_data[i]);
 	}
 
 

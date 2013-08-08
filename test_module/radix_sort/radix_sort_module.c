@@ -141,6 +141,18 @@ static int __init minit(void) {
 		qhgpu_call_sync(req);
 
 
+
+		req->kmmap_addr = qhgpu_mmap_addr_pass();
+		h_keys = ( unsigned int * )req->kmmap_addr;
+
+		printk("\n\n");
+		printk("========================\n");
+
+		for(i = 0; i < 50; i++){
+			printk("%d ,",h_keys[i]);
+		}
+		printk("========================\n");
+
 	//}
 	return 0;
 }

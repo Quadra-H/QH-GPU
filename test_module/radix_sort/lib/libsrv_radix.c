@@ -80,7 +80,7 @@ int radix_launch(struct qhgpu_service_request *sr)
 
 	printf("\n\n");
 
-	for(i=nkeys-60;i<nkeys-10;i++){
+	for(i=0;i<50;i++){
 		printf("%d ,", h_keys[i]);
 	}
 
@@ -104,6 +104,10 @@ int radix_launch(struct qhgpu_service_request *sr)
 int radix_post(struct qhgpu_service_request *sr)
 {
 	printf("[libsrv_radix] Info: radix_post\n");
+
+	//sr->hout = h_keys;
+
+	//csc( ad2hcpy( sr->hout, sr->dout, sr->outsize, s) );
 
 	return 0;
 }
