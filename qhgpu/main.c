@@ -757,31 +757,9 @@ int qhgpu_call_sync(struct qhgpu_request *req) {
 	data->done = 0;
 	init_waitqueue_head(&data->queue);
 
+
 	req->kdata = data;
 	req->callback = sync_callback;
-
-
-
-
-
-	unsigned int* mmap_data = req->kmmap_addr;//qhgpudev.mmap_private_data;
-	printk("mmap_data size : %d %d \n", sizeof(req->kmmap_addr),req->mmap_size);
-
-
-	int i=0;
-	for(i=0;i<50;i++){
-		printk(" %d , ", mmap_data[i]);
-	}
-
-
-
-
-
-
-
-
-
-
 
 
 

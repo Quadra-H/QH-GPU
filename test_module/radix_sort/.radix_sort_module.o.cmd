@@ -692,6 +692,7 @@ deps_/root/git/QH-GPU/test_module/radix_sort/radix_sort_module.o := \
   /root/git/QH-GPU/test_module/radix_sort/../../qhgpu/qhgpu.h \
   /root/git/QH-GPU/test_module/radix_sort/../../qhgpu/qhgpu_daemon.h \
   /root/git/QH-GPU/test_module/radix_sort/../../qhgpu/qhgpu_log.h \
+  /root/git/QH-GPU/test_module/radix_sort/./lib/cl_radix_sort_param.h \
 
 /root/git/QH-GPU/test_module/radix_sort/radix_sort_module.o: $(deps_/root/git/QH-GPU/test_module/radix_sort/radix_sort_module.o)
 

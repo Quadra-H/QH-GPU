@@ -53,7 +53,7 @@ void cl_radix_sort();
 void cl_radix_recup_gpu(void);
 
 // put the data on the host in the GPU
-void cl_radix_host2gpu(void);
+void cl_radix_host2gpu();
 
 // check that the sort is successfull (for debugging)
 void cl_radix_check(void);

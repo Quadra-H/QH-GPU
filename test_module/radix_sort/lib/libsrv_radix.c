@@ -43,6 +43,10 @@ int radix_cs(struct qhgpu_service_request *sr)
 // launch and copy result to sr->dout
 int radix_launch(struct qhgpu_service_request *sr)
 {
+
+	int i=0;
+
+
 	printf("[libsrv_radix] Info: radix_launch !!!3\n");
 	printf("mmap test!!!:  %p \n", sr->mmap_addr);
 
@@ -51,10 +55,13 @@ int radix_launch(struct qhgpu_service_request *sr)
 
 	h_keys = sr->mmap_addr;
 
-	int i=0;
-	for(i=0;i<50;i++){
-		printf("%d ,", h_keys[i]);
-	}
+
+
+	printf("\n\n init radix =====\n");
+//	for(i=sr->mmap_size-60;i<sr->mmap_size-10;i++){
+//			printf("%u ,", h_keys[i]);
+//	}
+
 
 	init_cl_radix_sort(Context,Devices[numdev],CommandQueue,sr->mmap_size);
 
@@ -62,12 +69,12 @@ int radix_launch(struct qhgpu_service_request *sr)
 	printf("Max Int= %d \n",(uint) _MAXINT);
 	cl_radix_sort();
 
-	printf("\n\n");
+	printf("\n\n recup =====\n");
 
 
-	for(i=0;i<50;i++){
-		printf("%d ,", h_keys[i]);
-	}
+//	for(i=sr->mmap_size-60;i<sr->mmap_size-10;i++){
+//		printf("%u ,", h_keys[i]);
+//	}
 
 
 	////////////////////////////////////////////////////////////////////////
@@ -80,9 +87,10 @@ int radix_launch(struct qhgpu_service_request *sr)
 
 	printf("\n\n");
 
-	for(i=0;i<50;i++){
-		printf("%d ,", h_keys[i]);
-	}
+	//for(i=sr->mmap_size-60;i<sr->mmap_size-10;i++){
+//	for(i=0;i<50;i++){
+//		printf("%u ,", h_keys[i]);
+//	}
 
 	printf("%f s in the histograms\n",histo_time);
 	printf("%f s in the scanning\n",scan_time);
@@ -90,25 +98,11 @@ int radix_launch(struct qhgpu_service_request *sr)
 	printf("%f s in the transposition\n",transpose_time);
 	printf("%f s total GPU time (without memory transfers)\n",sort_time);
 
-	// check the results (debugging)
-	//cl_radix_check();
-
-
-
-	/**/
-
-
-
 	return 0;
 }
 int radix_post(struct qhgpu_service_request *sr)
 {
 	printf("[libsrv_radix] Info: radix_post\n");
-
-	//sr->hout = h_keys;
-
-	//csc( ad2hcpy( sr->hout, sr->dout, sr->outsize, s) );
-
 	return 0;
 }
 
@@ -295,20 +289,17 @@ static struct qhgpu_service radix_srv;
 int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*))
 {
 	printf("[libsrv_radix] Info: init radix service !!!!\n");
-	sprintf(radix_srv.name, "radix_service");
 
-
-
-
-
+	/////////////////////////////////////////////
+	//radix sort init
+	/////////////////////////////////////////////
 	radix_prepare();
+	/////////////////////////////////////////////
 
 
-
+	sprintf(radix_srv.name, "radix_service");
 	radix_srv.sid = 1;
 	radix_srv.compute_size = radix_cs;
-
-
 	radix_srv.launch = radix_launch;
 	radix_srv.post = radix_post;
 

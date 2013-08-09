@@ -89,6 +89,8 @@ void init_cl_radix_sort(cl_context GPUContext,
 	reorder_time=0;
 	transpose_time=0;
 
+
+
 	size_t szKernelLength;
 	char* prog = NULL;
 	const char* cSourceFile = "./cl_radix_sort.cl";//커널파일 이름
@@ -97,8 +99,8 @@ void init_cl_radix_sort(cl_context GPUContext,
 
 
 
-	cl_int err;
 
+	cl_int err;
 	Program = clCreateProgramWithSource(Context, 1, (const char **)&prog, NULL, &err);
 	if (!Program) {
 		printf("Error: Failed to create compute program!\n");
@@ -149,9 +151,6 @@ void init_cl_radix_sort(cl_context GPUContext,
 	}
 
 
-
-
-
 	printf("Send to the GPU\n");
 	// copy on the GPU
 	d_inKeys  = clCreateBuffer(Context,
@@ -184,8 +183,73 @@ void init_cl_radix_sort(cl_context GPUContext,
 
 
 
-	// copy the two previous vectors to the device
-	cl_radix_host2gpu();
+	////////////////////////////////////////////////////////////////////////////////
+	//copy the two previous vectors to the device
+	//cl_radix_host2gpu();
+	////////////////////////////////////////////////////////////////////////////////
+	cl_int status;
+
+
+//	printf("\n\n before cl_radix_host2gpu \n");
+//
+//	//int i=0;
+//	for(uint i=nkeys-60;i<nkeys-10;i++){
+//		printf("%d ,", h_keys[i]);
+//	}
+//	printf("\n\n cl_radix_host2gpu \n");
+
+
+	status = clEnqueueWriteBuffer( CommandQueue,
+			d_inKeys,
+			CL_TRUE, 0,
+			sizeof(uint)  * nkeys,
+			h_keys,
+			0, NULL, NULL );
+
+
+
+	if(status == CL_INVALID_COMMAND_QUEUE){
+		printf("if command_queue is not a valid command-queue.1 \n");
+
+	}else if(status == CL_INVALID_CONTEXT){
+		printf("if command_queue is not a valid command-queue.2 \n");
+	}else if(status == CL_INVALID_MEM_OBJECT){
+		printf("if command_queue is not a valid command-queue.3 \n");
+	}else if(status == CL_INVALID_VALUE){
+		printf("if command_queue is not a valid command-queue.4 \n");
+	}else if(status == CL_INVALID_EVENT_WAIT_LIST){
+		printf("if command_queue is not a valid command-queue.5 \n");
+	}else if(status == CL_MISALIGNED_SUB_BUFFER_OFFSET){
+		printf("if command_queue is not a valid command-queue. 6\n");
+	}else if(status == CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST){
+		printf("if command_queue is not a valid command-queue.7 \n");
+	}else if(status == CL_MEM_OBJECT_ALLOCATION_FAILURE){
+		printf("if command_queue is not a valid command-queue.8 \n");
+	}else if(status == CL_OUT_OF_RESOURCES){
+		printf("if command_queue is not a valid command-queue. 9\n");
+	}else if(status == CL_OUT_OF_HOST_MEMORY){
+		printf("if command_queue is not a valid command-queue.10 \n");
+	}
+
+	assert (status == CL_SUCCESS);
+	clFinish(CommandQueue);  // wait end of read
+
+	status = clEnqueueWriteBuffer( CommandQueue,
+			d_inPermut,
+			CL_TRUE, 0,
+			sizeof(uint)  * nkeys,
+			h_Permut,
+			0, NULL, NULL );
+
+	assert (status == CL_SUCCESS);
+	clFinish(CommandQueue);  // wait end of read
+	////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
 
 
 	// allocate the histogram on the GPU
@@ -417,7 +481,7 @@ void cl_radix_transpose(int nbrow,int nbcol){
 void cl_radix_sort(){
 
 
-	printf("Start storting %d keys\n",nkeys);
+
 
 
 
@@ -426,18 +490,21 @@ void cl_radix_sort(){
 	int nbcol=nkeys_rounded/(_GROUPS * _ITEMS);
 	int nbrow= _GROUPS * _ITEMS;
 
-	if (VERBOSE){
-		printf("Start storting %d keys\n",nkeys);
-		printf("nbcol: %d, nbrow: %d\n",nbcol,nbrow);
-	}
 
-	/*if (TRANSPOSE){
+	printf("Start storting %d keys\n",nkeys);
+	printf("nbcol: %d, nbrow: %d\n",nbcol,nbrow);
+
+//	if (VERBOSE){
+//		printf("Start storting1 %d keys\n",nkeys);
+//	}
+
+	if (TRANSPOSE){
 		if (VERBOSE) {
 			printf("Transpose\n");
 		}
-		cl_radix_transpose(nbrow,nbcol);
+		//cl_radix_transpose(nbrow,nbcol);
 	}
-	*/
+
 
 	for(uint pass=0;pass<_PASS;pass++){
 		if (VERBOSE) {
@@ -458,12 +525,12 @@ void cl_radix_sort(){
 		cl_radix_reorder(pass);
 	}
 
-	/*if (TRANSPOSE){
+	if (TRANSPOSE){
 		if (VERBOSE) {
 			printf("Transpose back\n");
 		}
-		cl_radix_transpose(nbcol,nbrow);
-	}*/
+		//cl_radix_transpose(nbcol,nbrow);
+	}
 
 	sort_time=histo_time+scan_time+reorder_time+transpose_time;
 	if (VERBOSE){
@@ -610,13 +677,13 @@ void cl_radix_recup_gpu(void){
 
 	clFinish(CommandQueue);  // wait end of read
 
-	printf("cl_radix_recup_gpu step 1. \n");
-
-	printf("\n\n");
-	int i=0;
-	for(i=nkeys-60;i<nkeys-10;i++){
-		printf("%d ,", h_keys[i]);
-	}
+//	printf("\ncl_radix_recup_gpu step 1. %d \n", nkeys);
+//
+//	printf("\n\n");
+//	int i=0;
+//	for(i=nkeys-60;i<nkeys-10;i++){
+//		printf("%u ,", h_keys[i]);
+//	}
 
 	status = clEnqueueReadBuffer( CommandQueue,
 			d_inKeys,
@@ -629,16 +696,16 @@ void cl_radix_recup_gpu(void){
 	clFinish(CommandQueue);  // wait end of read
 
 
-	printf("\n\n");
+//	printf("\n\n after recup \n");
+//
+//	for(i=nkeys-60;i<nkeys-10;i++){
+//		printf("%u ,", h_keys[i]);
+//	}
+//	printf("\n\n");
 
-	for(i=nkeys-60;i<nkeys-10;i++){
-		printf("%d ,", h_keys[i]);
-	}
-	printf("\n\n");
 
 
-
-	printf("cl_radix_recup_gpu step 2. \n");
+	/*printf("cl_radix_recup_gpu step 2. \n");
 	status = clEnqueueReadBuffer( CommandQueue,
 			d_inPermut,
 			CL_TRUE, 0,
@@ -668,15 +735,25 @@ void cl_radix_recup_gpu(void){
 			0, NULL, NULL );
 	assert (status == CL_SUCCESS);
 
-	printf("cl_radix_recup_gpu step 5. \n");
+	printf("cl_radix_recup_gpu step 5. \n");*/
 
-	clFinish(CommandQueue);  // wait end of read
+	//clFinish(CommandQueue);  // wait end of read
 }
 
 // put the data to the GPU
-void cl_radix_host2gpu(void){
+void cl_radix_host2gpu(){
 
 	cl_int status;
+
+
+	printf("\n\n before cl_radix_host2gpu \n");
+
+	int i=0;
+	for(i=nkeys-60;i<nkeys-10;i++){
+		printf("%d ,", h_keys[i]);
+	}
+	printf("\n\n cl_radix_host2gpu \n");
+
 
 	status = clEnqueueWriteBuffer( CommandQueue,
 			d_inKeys,
@@ -711,18 +788,18 @@ void cl_radix_host2gpu(void){
 	}
 
 
-/*
-CL_MEM_OBJECT_ALLOCATION_FAILURE
-	 if the context associated with command_queue and buffer are not the same or if the context associated with command_queue and events in event_wait_list are not the same.
-	 if buffer is not a valid buffer object.
-	 if the region being written specified by (offset, cb) is out of bounds or if ptr is a NULL value.
-	 if event_wait_list is NULL and num_events_in_wait_list greater than 0, or event_wait_list is not NULL and num_events_in_wait_list is 0, or if event objects in event_wait_list are not valid events.
-	 if buffer is a sub-buffer object and offset specified when the sub-buffer object is created is not aligned to CL_DEVICE_MEM_BASE_ADDR_ALIGN value for device associated with queue.
-	 if the read and write operations are blocking and the execution status of any of the events in event_wait_list is a negative integer value.
-	 if there is a failure to allocate memory for data store associated with buffer.
-	 if there is a failure to allocate resources required by the OpenCL implementation on the device.
 
-*/
+//CL_MEM_OBJECT_ALLOCATION_FAILURE
+//	 if the context associated with command_queue and buffer are not the same or if the context associated with command_queue and events in event_wait_list are not the same.
+//	 if buffer is not a valid buffer object.
+//	 if the region being written specified by (offset, cb) is out of bounds or if ptr is a NULL value.
+//	 if event_wait_list is NULL and num_events_in_wait_list greater than 0, or event_wait_list is not NULL and num_events_in_wait_list is 0, or if event objects in event_wait_list are not valid events.
+//	 if buffer is a sub-buffer object and offset specified when the sub-buffer object is created is not aligned to CL_DEVICE_MEM_BASE_ADDR_ALIGN value for device associated with queue.
+//	 if the read and write operations are blocking and the execution status of any of the events in event_wait_list is a negative integer value.
+//	 if there is a failure to allocate memory for data store associated with buffer.
+//	 if there is a failure to allocate resources required by the OpenCL implementation on the device.
+
+
 
 	assert (status == CL_SUCCESS);
 	clFinish(CommandQueue);  // wait end of read
