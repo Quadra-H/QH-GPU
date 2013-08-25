@@ -1,0 +1,9 @@
+all:
+
+#g++ -L/opt/AMDAPP/lib/x86_64/ -I/opt/AMDAPP/include -c cl_radix_sort.c -lOpenCL
+	gcc -L/opt/AMDAPP/lib/x86_64/ -I/opt/AMDAPP/include -std=c99 -c -g -fPIC cl_floyd_warshall.c libsrv_floyd_warshall.c -lOpenCL
+	gcc -shared -fPIC -std=c99 -o libsrv_floyd_warshall.so libsrv_floyd_warshall.o cl_floyd_warshall.o	 
+	$(if $(BUILD_DIR), cp libsrv_floyd_warshall.so $(BUILD_DIR)/ )
+
+clean:
+	rm -f *.o *.so
