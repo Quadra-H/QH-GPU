@@ -7,9 +7,18 @@
  *
  */
 
+
 #ifndef __QHGPU_DAEMON_H__
 #define __QHGPU_DAEMON_H__
 
+
+
+
+#if defined (__APPLE__) || defined(MACOSX)
+#include <OpenCL/opencl.h>
+#else
+#include <CL/opencl.h>
+#endif
 
 
 
@@ -19,9 +28,13 @@
 #define SERVICE_LIB_PREFIX "libsrv_"
 
 typedef int (*fn_init_service)(
-    void* libhandle, int (*reg_srv)(struct qhgpu_service *, void*));
+    void* libhandle, int (*reg_srv)(struct qhgpu_service *, void*),
+	cl_context context,
+	cl_device_id* devices);
 typedef int (*fn_finit_service)(
     void* libhandle, int (*unreg_srv)(const char*));
+
+
 
 
 #ifdef __QHGPU__

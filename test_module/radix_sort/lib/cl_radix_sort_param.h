@@ -7,7 +7,7 @@
 // they are included in the class AND in the OpenCL kernels
 ///////////////////////////////////////////////////////
 // these parameters can be changed
-#define _ITEMS  16 // number of items in a group
+#define _ITEMS  64 // number of items in a group
 #define _GROUPS 16 // the number of virtual processors is _ITEMS * _GROUPS
 #define  _HISTOSPLIT 512 // number of splits of the histogram
 #define _TOTALBITS 25  // number of bits for the integer in the list (max=32)

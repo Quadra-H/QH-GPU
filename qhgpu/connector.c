@@ -10,12 +10,22 @@
 #include <string.h>
 #include <poll.h>
 #include "connector.h"
+#include "global.h"
 
 #include "qhgpu.h"
 #include "qhgpu_log.h"
 #include "cl_operator.h"
 
 #define ssc(...) _safe_syscall(__VA_ARGS__, __FILE__, __LINE__)
+
+
+cl_context context;             // OpenCL context
+cl_device_id* devices;   // tableau des devices
+cl_uint nb_platforms;
+cl_uint nb_devices;   // number of devices of the gpu
+cl_uint numdev;
+cl_device_type device_type;   // type de device pour le calcul (cpu ou gpu)
+cl_command_queue command_que;     // OpenCL command queue
 
 char* mmap_address;
 
@@ -71,7 +81,7 @@ static int init_mmap() {
 	return 0;
 }
 
-static int qc_init(void) {
+int qc_init(void) {
 	int i, len, r;
 	void *p = NULL;
 
@@ -111,6 +121,168 @@ static int qc_init(void) {
 		perror("device write fail!");
 		abort();
 	}/**/
+
+
+
+
+
+
+
+	/////////////////////////////////////////////////////////////////////
+	//////init OpenCL
+	/////////////////////////////////////////////////////////////////////
+	cl_int status;
+	status = clGetPlatformIDs(0, NULL, &nb_platforms);
+	assert (status == CL_SUCCESS);
+	assert(nb_platforms > 0);
+	//cout << "Found "<<nb_platforms<<" OpenCL platform"<<endl;
+
+	//cl_platform_id* platforms = new cl_platform_id[nb_platforms];
+	cl_platform_id* platforms =(cl_platform_id *) malloc ( nb_platforms * sizeof(cl_platform_id) );
+
+	status = clGetPlatformIDs(nb_platforms, platforms, NULL);
+	assert (status == CL_SUCCESS);
+
+	// affichage
+	char pbuf[1000];
+	//int i=0;
+	for ( i = 0; i < (int)nb_platforms; ++i) {
+		status = clGetPlatformInfo(platforms[0],
+				CL_PLATFORM_VENDOR,
+				sizeof(pbuf),
+				pbuf,
+				NULL);
+		assert (status == CL_SUCCESS);
+	}
+
+
+	for (i = 0; i < (int)nb_platforms; ++i) {
+		status = clGetPlatformInfo(platforms[0],
+				CL_PLATFORM_VERSION,
+				sizeof(pbuf),
+				pbuf,
+				NULL);
+		assert (status == CL_SUCCESS);
+
+		//cout << pbuf <<endl;
+	}
+	// affichages divers
+	for ( i = 0; i < (int)nb_platforms; ++i) {
+		status = clGetPlatformInfo(platforms[0],
+				CL_PLATFORM_NAME,
+				sizeof(pbuf),
+				pbuf,
+				NULL);
+		assert (status == CL_SUCCESS);
+
+		//cout << pbuf <<endl;
+	}
+
+	// comptage du nombre de devices
+	status = clGetDeviceIDs(platforms[0],
+			CL_DEVICE_TYPE_ALL,
+			0,
+			NULL,
+			&nb_devices);
+	assert (status == CL_SUCCESS);
+	assert(nb_devices > 0);
+
+	//cout <<"Found "<<nb_devices<< " OpenCL device"<<endl;
+
+
+	devices =(cl_device_id *) malloc ( nb_devices * sizeof(cl_device_id) );
+
+
+	numdev=0;
+	assert(numdev < nb_devices);
+
+	// remplissage du tableau des devices
+	status = clGetDeviceIDs(platforms[0],
+			CL_DEVICE_TYPE_ALL,
+			nb_devices,
+			devices,
+			NULL);
+	assert (status == CL_SUCCESS);
+
+
+	// informations diverses
+
+	// type du device
+	status = clGetDeviceInfo(
+			devices[numdev],
+			CL_DEVICE_TYPE,
+			sizeof(cl_device_type),
+			(void*)&device_type,
+			NULL);
+	assert (status == CL_SUCCESS);
+
+
+	/*status = clGetDeviceInfo(
+			devices[numdev],
+			CL_DEVICE_EXTENSIONS,
+			sizeof(exten),
+			exten,
+			NULL);
+	assert (status == CL_SUCCESS);*/
+
+	//cout<<"OpenCL extensions for this device:"<<endl;
+	//cout << exten<<endl<<endl;
+
+	// type du device
+	status = clGetDeviceInfo(
+			devices[numdev],
+			CL_DEVICE_TYPE,
+			sizeof(cl_device_type),
+			(void*)&device_type,
+			NULL);
+	assert (status == CL_SUCCESS);
+
+	if (device_type == CL_DEVICE_TYPE_CPU){
+		//cout << "Calcul sur CPU"<<endl;
+	}
+	else{
+		//cout << "Calcul sur Carte Graphique"<<endl;
+	}
+
+	// mémoire cache du  device
+	cl_ulong memcache;
+	status = clGetDeviceInfo(
+			devices[numdev],
+			CL_DEVICE_LOCAL_MEM_SIZE,
+			sizeof(cl_ulong),
+			(void*)&memcache,
+			NULL);
+	assert (status == CL_SUCCESS);
+
+	//cout << "GPU cache="<<memcache<<endl;
+	//cout << "Needed cache="<< _ITEMS*_RADIX*sizeof(int)<<endl;
+
+	// nombre de CL_DEVICE_MAX_COMPUTE_UNITS
+	cl_int cores;
+	status = clGetDeviceInfo(
+			devices[numdev],
+			CL_DEVICE_MAX_COMPUTE_UNITS,
+			sizeof(cl_int),
+			(void*)&cores,
+			NULL);
+	assert (status == CL_SUCCESS);
+
+	//cout << "Compute units="<<cores<<endl;
+	// création d'un contexte opencl
+	//cout <<"Create the context"<<endl;
+	context = clCreateContext(0,
+			1,
+			&devices[numdev],
+			NULL,
+			NULL,
+			&status);
+
+	assert (status == CL_SUCCESS);
+	////////////////////////////////////////////////////////////////////////
+	/// eof create context
+	////////////////////////////////////////////////////////////////////////
+
+
 
 	return 0;
 }
@@ -283,6 +455,17 @@ static int qc_launch_exec(struct _qhgpu_sritem *sreq)
 {
 
 	printf("qc_launch_exec !!!\n");
+
+
+	cl_int status;
+	command_que= clCreateCommandQueue(
+			context,
+			devices[numdev],
+			CL_QUEUE_PROFILING_ENABLE,
+			&status);
+	assert (status == CL_SUCCESS);
+
+
 	//// GPU computation
 	int r = sreq->sr.s->launch(&sreq->sr);
 	if (r) {
@@ -387,7 +570,9 @@ int main(int argc, char *argv[])
 	qhgpu_dev_path = "/dev/qhgpu";
 	service_lib_dir = "./";
 	qc_init();
-	qc_load_all_services(service_lib_dir);
+
+
+	qc_load_all_services(service_lib_dir,context,devices);
 	qc_main_loop();
 	qc_finit();
 

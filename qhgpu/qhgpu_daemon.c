@@ -16,8 +16,14 @@
 #include <stdlib.h>
 #include "list.h"
 #include "connector.h"
+#include "qhgpu_daemon.h"
 
 LIST_HEAD(services);
+
+
+
+cl_context context;             // OpenCL context
+cl_device_id* devices;
 
 
 static struct _qhgpu_sitem *lookup_qhgpu_sitem(const char *name)
@@ -107,7 +113,7 @@ int qc_load_service(const char *libpath)
 					libpath, ((err=dlerror()) == NULL?"": err));
 			dlclose(lh);
 		} else {
-			if (init(lh, qc_register_service))
+			if (init(lh, qc_register_service,context,devices))
 			{
 				printf("Warning: %s failed to register service\n",
 						libpath);

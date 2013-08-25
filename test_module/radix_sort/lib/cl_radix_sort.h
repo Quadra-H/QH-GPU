@@ -38,9 +38,9 @@ typedef cl_uint uint;
 #include <stdlib.h>
 //extern "C" {
 
-void init_cl_radix_sort(cl_context GPUContext,
-		cl_device_id dev,
-		cl_command_queue CommandQue, int nkeys);
+void build_cl_radix_sort();
+
+void init_cl_radix_sort(int nkeys);
 
 // this function allows to change the size of the sorted vector
 void cl_radix_resize(int nn);
@@ -77,19 +77,19 @@ void cl_radix_reorder(uint pass);
 //}
 
 
-cl_context Context;             // OpenCL context
-cl_device_id NumDevice;         // OpenCL Device
-cl_command_queue CommandQueue;     // OpenCL command queue
-cl_program Program;                // OpenCL program
+//cl_context Context;             // OpenCL context
+//cl_device_id NumDevice;         // OpenCL Device
+
+cl_device_id num_device;
+
+cl_program program;                // OpenCL program
 uint h_Histograms[_RADIX * _GROUPS * _ITEMS]; // histograms on the cpu
 cl_mem d_Histograms;                   // histograms on the GPU
 
 
-cl_uint NbPlatforms;
-cl_uint NbDevices;   // number of devices of the gpu
-cl_uint numdev;   // numéro du device
-cl_device_type DeviceType;   // type de device pour le calcul (cpu ou gpu)
-cl_int status;
+cl_command_queue command_que;
+cl_context context;
+
 
 
 // sum of the local histograms

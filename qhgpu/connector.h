@@ -12,6 +12,18 @@
 
 #include "qhgpu.h"
 #include "list.h"
+#include<assert.h>
+
+
+
+#if defined (__APPLE__) || defined(MACOSX)
+#include <OpenCL/opencl.h>
+#else
+#include <CL/opencl.h>
+#endif
+
+
+
 
 
 
@@ -20,7 +32,9 @@ struct qhgpu_service {
     char name[QHGPU_SERVICE_NAME_SIZE];
     int sid;
     int (*compute_size)(struct qhgpu_service_request *sreq);
-    int (*prepare)(struct qhgpu_service_request *sreq);
+    int (*prepare)(struct qhgpu_service_request *sreq, cl_context GPUContext,
+    		cl_device_id dev,
+    		cl_command_queue CommandQue);
     int (*launch)(struct qhgpu_service_request *sreq);
     int (*post)(struct qhgpu_service_request *sreq);
 };

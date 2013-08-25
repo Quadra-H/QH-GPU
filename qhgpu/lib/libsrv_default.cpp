@@ -409,13 +409,11 @@ extern "C" int default_post(struct qhgpu_service_request *sr)
 
 
 
-
-
-
-
 static struct qhgpu_service default_srv;
 
-extern "C" int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*))
+extern "C" int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*),
+		cl_context ctx,
+		cl_device_id* dv)
 {
 	printf("[libsrv_default] Info: init test service !!!!\n");
 	sprintf(default_srv.name, "default_service");

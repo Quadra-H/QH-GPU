@@ -67,6 +67,7 @@ static int test_gpu_callback(struct qhgpu_request *req)
 
 
 
+
 int pow(int k, int n){
 
 	int i=0,ret = 1;
@@ -75,6 +76,46 @@ int pow(int k, int n){
 	}
 	return ret;
 }
+
+
+int* RadixSort(int* pData, int* pTemp, size_t count)
+{
+	int loopCnt = pow(2,_BITS);
+size_t mIndex[_PASS][loopCnt]; //= {0};            /* index matrix */
+int* pDst, *pSrc, *pTmp;
+size_t i,j,m,n;
+int u;
+
+    for(i = 0; i < count; i++){         /* generate histograms */
+        u = pData[i];
+        for(j = 0; j < _PASS; j++){
+            mIndex[j][(size_t)(u & 0xff)]++;
+            u >>= 8;
+        }
+    }
+    for(j = 0; j < _PASS; j++){             /* convert to indices */
+        n = 0;
+        for(i = 0; i < loopCnt; i++){
+            m = mIndex[j][i];
+            mIndex[j][i] = n;
+            n += m;
+        }
+    }
+    pDst = pTemp;                       /* radix sort */
+    pSrc = pData;
+    for(j = 0; j < _PASS; j++){
+        for(i = 0; i < count; i++){
+            u = pSrc[i];
+            m = (size_t)(u >> (j<<3)) & 0xff;
+            pDst[mIndex[j][m]++] = u;
+        }
+        pTmp = pSrc;
+        pSrc = pDst;
+        pDst = pTmp;
+    }
+    return(pSrc);
+}
+
 
 // data : 정수배열
 // size : data의 정수들의 개수
@@ -249,6 +290,12 @@ static int __init minit(void) {
 	if((temp = (unsigned int *)__get_free_pages(GFP_KERNEL, 10))==NULL)return;
 
 
+	int cpu_size =_N;
+
+//	if((counts = (unsigned int *)vmalloc(cpu_size * ( sizeof( int ))))==NULL)return;
+//	if((temp = (unsigned int *)vmalloc(cpu_size * ( sizeof( int ))))==NULL)return;
+
+
 	//if ( (counts = (unsigned int *)vmalloc(_N * ( sizeof( int )), GFP_DMA | GFP_KERNEL)) == NULL )
 	/*if ( (counts = (unsigned int *)vmalloc(_N * ( sizeof( int ))) == NULL ))
 		return;
@@ -257,7 +304,10 @@ static int __init minit(void) {
 
 		*/
 
+	//unsigned int* cpu_keys =(unsigned int *)vmalloc(cpu_size * ( sizeof( int )));
 	unsigned int* cpu_keys = (unsigned int*)__get_free_pages(GFP_KERNEL, 10);
+	//unsigned int* cpu_temp = (unsigned int*)__get_free_pages(GFP_KERNEL, 10);
+
 	if (!cpu_keys){
 		printk("malloc fail !!! \n");
 	}else{
@@ -265,14 +315,15 @@ static int __init minit(void) {
 		printk("malloc success !!! \n");
 
 
-		for(i = 0; i < _N; i++){
+		for(i = 0; i < cpu_size; i++){
 			get_random_bytes(&num, sizeof(i));
 			cpu_keys[i] = (num% _MAXINT);
 		}
 
 
 		do_gettimeofday(&t0);
-		rxSort(cpu_keys, _N, 29, 2);
+		rxSort(cpu_keys, cpu_size, 29, 2);
+		//RadixSort(cpu_keys, cpu_temp,_N);
 		do_gettimeofday(&t1);
 
 		tt = 1000000*(t1.tv_sec-t0.tv_sec) +

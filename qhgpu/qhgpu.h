@@ -29,7 +29,7 @@ struct qhgpu_gpu_mem_info {
 };
 
 #define QHGPU_SERVICE_NAME_SIZE 32
-#include "qhgpu_daemon.h"
+
 
 
 struct qhgpu_ku_request {

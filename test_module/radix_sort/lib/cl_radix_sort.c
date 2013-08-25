@@ -1,6 +1,8 @@
 #include<stdio.h>
 #include <string.h>
 #include "cl_radix_sort.h"
+//#include "../../../qhgpu/connector.h"
+#include "../../../qhgpu/global.h"
 
 #define max(a,b) (((a)>(b))?(a):(b))
 
@@ -57,21 +59,77 @@ char* oclLoadProgSource(const char* cFilename, const char* cPreamble, size_t* sz
 }
 
 
+void build_cl_radix_sort(cl_context ctx,
+		cl_device_id* devices){
 
-void init_cl_radix_sort(cl_context GPUContext,
-		cl_device_id dev,
-		cl_command_queue CommandQue, int nkeys){
+	context = ctx;
+	num_device= devices[0];
+
+	cl_int status;
+
+	command_que = clCreateCommandQueue(
+				context,
+				num_device,
+				CL_QUEUE_PROFILING_ENABLE,
+				&status);
+		assert (status == CL_SUCCESS);
+
+
+	cl_int err;
+	size_t szKernelLength;
+	char* prog = NULL;
+	const char* cSourceFile = "./cl_radix_sort.cl";//커널파일 이름
+	printf("oclLoadProgSource (%s)...\n", cSourceFile);
+	prog = oclLoadProgSource(cSourceFile, "", &szKernelLength);
 
 
 
-	CommandQueue = clCreateCommandQueue(
-			Context,
-			dev,
-			CL_QUEUE_PROFILING_ENABLE,
-			&status);
-	assert (status == CL_SUCCESS);
+	program = clCreateProgramWithSource(context, 1, (const char **)&prog, NULL, &err);
+	if (!program) {
+		printf("Error: Failed to create compute program!\n");
+	}
+	assert(err == CL_SUCCESS);
 
 
+	err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+	if (err != CL_SUCCESS) {
+		size_t len;
+		char buffer[2048];
+		printf("Error: Failed to build program executable!\n");
+		clGetProgramBuildInfo(program, num_device, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+		printf("%s\n", buffer);
+		assert( err == CL_SUCCESS);
+	}
+
+
+	ckHistogram = clCreateKernel(program, "histogram", &err);
+	assert(err == CL_SUCCESS);
+	ckScanHistogram = clCreateKernel(program, "scanhistograms", &err);
+	assert(err == CL_SUCCESS);
+	ckPasteHistogram = clCreateKernel(program, "pastehistograms", &err);
+	assert(err == CL_SUCCESS);
+	ckReorder = clCreateKernel(program, "reorder", &err);
+	assert(err == CL_SUCCESS);
+	ckTranspose = clCreateKernel(program, "transpose", &err);
+	assert(err == CL_SUCCESS);
+
+	printf("Create Kernel finished !!\n");
+
+}
+
+
+
+void init_cl_radix_sort(
+		int nkeys){
+
+
+
+	cl_int err;
+
+
+	cl_int status;
+
+	/**/
 
 
 
@@ -91,46 +149,11 @@ void init_cl_radix_sort(cl_context GPUContext,
 
 
 
-	size_t szKernelLength;
-	char* prog = NULL;
-	const char* cSourceFile = "./cl_radix_sort.cl";//커널파일 이름
-	printf("oclLoadProgSource (%s)...\n", cSourceFile);
-	prog = oclLoadProgSource(cSourceFile, "", &szKernelLength);
 
 
 
 
-	cl_int err;
-	Program = clCreateProgramWithSource(Context, 1, (const char **)&prog, NULL, &err);
-	if (!Program) {
-		printf("Error: Failed to create compute program!\n");
-	}
-	assert(err == CL_SUCCESS);
 
-
-	err = clBuildProgram(Program, 0, NULL, NULL, NULL, NULL);
-	if (err != CL_SUCCESS) {
-		size_t len;
-		char buffer[2048];
-		printf("Error: Failed to build program executable!\n");
-		clGetProgramBuildInfo(Program, dev, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
-		printf("%s\n", buffer);
-		assert( err == CL_SUCCESS);
-	}
-
-
-	ckHistogram = clCreateKernel(Program, "histogram", &err);
-	assert(err == CL_SUCCESS);
-	ckScanHistogram = clCreateKernel(Program, "scanhistograms", &err);
-	assert(err == CL_SUCCESS);
-	ckPasteHistogram = clCreateKernel(Program, "pastehistograms", &err);
-	assert(err == CL_SUCCESS);
-	ckReorder = clCreateKernel(Program, "reorder", &err);
-	assert(err == CL_SUCCESS);
-	ckTranspose = clCreateKernel(Program, "transpose", &err);
-	assert(err == CL_SUCCESS);
-
-	printf("Create Kernel finished !!\n");
 
 
 	//printf("Construct the random list\n");
@@ -153,28 +176,28 @@ void init_cl_radix_sort(cl_context GPUContext,
 
 	printf("Send to the GPU\n");
 	// copy on the GPU
-	d_inKeys  = clCreateBuffer(Context,
+	d_inKeys  = clCreateBuffer(context,
 			CL_MEM_READ_WRITE,
 			sizeof(uint)* nkeys ,
 			NULL,
 			&err);
 	assert(err == CL_SUCCESS);
 
-	d_outKeys  = clCreateBuffer(Context,
+	d_outKeys  = clCreateBuffer(context,
 			CL_MEM_READ_WRITE,
 			sizeof(uint)* nkeys ,
 			NULL,
 			&err);
 	assert(err == CL_SUCCESS);
 
-	d_inPermut  = clCreateBuffer(Context,
+	d_inPermut  = clCreateBuffer(context,
 			CL_MEM_READ_WRITE,
 			sizeof(uint)* nkeys ,
 			NULL,
 			&err);
 	assert(err == CL_SUCCESS);
 
-	d_outPermut  = clCreateBuffer(Context,
+	d_outPermut  = clCreateBuffer(context,
 			CL_MEM_READ_WRITE,
 			sizeof(uint)* nkeys ,
 			NULL,
@@ -187,19 +210,7 @@ void init_cl_radix_sort(cl_context GPUContext,
 	//copy the two previous vectors to the device
 	//cl_radix_host2gpu();
 	////////////////////////////////////////////////////////////////////////////////
-	cl_int status;
-
-
-//	printf("\n\n before cl_radix_host2gpu \n");
-//
-//	//int i=0;
-//	for(uint i=nkeys-60;i<nkeys-10;i++){
-//		printf("%d ,", h_keys[i]);
-//	}
-//	printf("\n\n cl_radix_host2gpu \n");
-
-
-	status = clEnqueueWriteBuffer( CommandQueue,
+	status = clEnqueueWriteBuffer( command_que,
 			d_inKeys,
 			CL_TRUE, 0,
 			sizeof(uint)  * nkeys,
@@ -232,9 +243,9 @@ void init_cl_radix_sort(cl_context GPUContext,
 	}
 
 	assert (status == CL_SUCCESS);
-	clFinish(CommandQueue);  // wait end of read
+	clFinish(command_que);  // wait end of read
 
-	status = clEnqueueWriteBuffer( CommandQueue,
+	status = clEnqueueWriteBuffer( command_que,
 			d_inPermut,
 			CL_TRUE, 0,
 			sizeof(uint)  * nkeys,
@@ -242,7 +253,7 @@ void init_cl_radix_sort(cl_context GPUContext,
 			0, NULL, NULL );
 
 	assert (status == CL_SUCCESS);
-	clFinish(CommandQueue);  // wait end of read
+	clFinish(command_que);  // wait end of read
 	////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////
 
@@ -253,7 +264,7 @@ void init_cl_radix_sort(cl_context GPUContext,
 
 
 	// allocate the histogram on the GPU
-	d_Histograms  = clCreateBuffer(Context,
+	d_Histograms  = clCreateBuffer(context,
 			CL_MEM_READ_WRITE,
 			sizeof(uint)* _RADIX * _GROUPS * _ITEMS,
 			NULL,
@@ -262,7 +273,7 @@ void init_cl_radix_sort(cl_context GPUContext,
 
 
 	// allocate the auxiliary histogram on GPU
-	d_globsum  = clCreateBuffer(Context,
+	d_globsum  = clCreateBuffer(context,
 			CL_MEM_READ_WRITE,
 			sizeof(uint)* _HISTOSPLIT,
 			NULL,
@@ -270,7 +281,7 @@ void init_cl_radix_sort(cl_context GPUContext,
 	assert(err == CL_SUCCESS);
 
 	// temporary vector when the sum is not needed
-	d_temp  = clCreateBuffer(Context,
+	d_temp  = clCreateBuffer(context,
 			CL_MEM_READ_WRITE,
 			sizeof(uint)* _HISTOSPLIT,
 			NULL,
@@ -327,9 +338,6 @@ void init_cl_radix_sort(cl_context GPUContext,
 void cl_radix_resize(int nn){
 
 
-
-
-
 	if (VERBOSE){
 		printf("Resize to %d \n",nn);
 	}
@@ -354,7 +362,7 @@ void cl_radix_resize(int nn){
 		nkeys_rounded=nkeys-reste+(_GROUPS * _ITEMS);
 		// pad the vector with big values
 		assert(nkeys_rounded <= nkeys);
-		err = clEnqueueWriteBuffer(CommandQueue,
+		err = clEnqueueWriteBuffer(command_que,
 				d_inKeys,
 				CL_TRUE, sizeof(uint)*nkeys,
 				sizeof(uint) *(_GROUPS * _ITEMS - reste) ,
@@ -427,7 +435,7 @@ void cl_radix_transpose(int nbrow,int nbcol){
 	local_work_size[1]=tilesize;
 
 
-	err = clEnqueueNDRangeKernel(CommandQueue,
+	err = clEnqueueNDRangeKernel(command_que,
 			ckTranspose,
 			2,   // two dimensions: rows and columns
 			NULL,
@@ -450,7 +458,7 @@ void cl_radix_transpose(int nbrow,int nbcol){
 
 
 	// timing
-	clFinish(CommandQueue);
+	clFinish(command_que);
 
 	cl_ulong debut,fin;
 
@@ -470,19 +478,10 @@ void cl_radix_transpose(int nbrow,int nbcol){
 	assert(err== CL_SUCCESS);
 
 	transpose_time += (float) (fin-debut)/1e9;
-
-
-
-
-
 }
 
 // global sorting algorithm
 void cl_radix_sort(){
-
-
-
-
 
 
 	assert(nkeys_rounded <= nkeys);
@@ -502,7 +501,7 @@ void cl_radix_sort(){
 		if (VERBOSE) {
 			printf("Transpose\n");
 		}
-		//cl_radix_transpose(nbrow,nbcol);
+		cl_radix_transpose(nbrow,nbcol);
 	}
 
 
@@ -529,7 +528,7 @@ void cl_radix_sort(){
 		if (VERBOSE) {
 			printf("Transpose back\n");
 		}
-		//cl_radix_transpose(nbcol,nbrow);
+		cl_radix_transpose(nbcol,nbrow);
 	}
 
 	sort_time=histo_time+scan_time+reorder_time+transpose_time;
@@ -570,112 +569,13 @@ void cl_radix_check(){
 
 }
 
-void cl_radix_pic_sorting(void){
-
-	// allocate positions and velocitie<< " keys"<<endls of particles
-	static float *xp, *yp, *up, *vp;
-	static float *xs, *ys, *us, *vs;
-
-	xp = (float*)malloc(sizeof(float)*nkeys);
-	yp = (float*)malloc(sizeof(float)*nkeys);
-	up = (float*)malloc(sizeof(float)*nkeys);
-	vp = (float*)malloc(sizeof(float)*nkeys);
-	xs = (float*)malloc(sizeof(float)*nkeys);
-	ys = (float*)malloc(sizeof(float)*nkeys);
-	us = (float*)malloc(sizeof(float)*nkeys);
-	vs = (float*)malloc(sizeof(float)*nkeys);
-
-
-	printf("Init particles\n");
-	// use van der Corput sequences for initializations
-	for(int j=0;j<nkeys;j++){
-		xp[j]=corput(j,2,3);
-		yp[j]=corput(j,3,5);
-		up[j]=corput(j,2,5);
-		vp[j]=corput(j,3,7);
-		h_Permut[j]=j;
-		// compute the cell number
-		int ix=floor(xp[j]*32);
-		int iy=floor(yp[j]*32);
-		assert(ix>=0 && ix<32);
-		assert(iy>=0 && iy<32);
-		int k=32*ix+iy;
-		h_keys[j]=k;
-	}
-
-	cl_radix_host2gpu();
-
-	// init the timers
-	histo_time=0;
-	scan_time=0;
-	reorder_time=0;
-	transpose_time=0;
-
-	printf("GPU first sorting\n");
-	cl_radix_sort();
-
-
-	printf("%f s in the histograms\n",histo_time);
-	printf("%f s in the scanning\n",scan_time);
-	printf("%f s in the reordering\n",reorder_time);
-	printf("%f s in the transposition\n",transpose_time);
-	printf("%f s total GPU time (without memory transfers)\n",sort_time);
-
-	cl_radix_recup_gpu();
-
-	printf("Reorder particles\n");
-
-	for(int j=0;j<nkeys;j++){
-		xs[j]=xp[h_Permut[j]];
-		ys[j]=yp[h_Permut[j]];
-		us[j]=up[h_Permut[j]];
-		vs[j]=vp[h_Permut[j]];
-	}
-
-	// move particles
-	float delta=0.1;
-	for(int j=0;j<nkeys;j++){
-		xp[j]=xs[j]+delta*us[j]/32;
-		xp[j]=xp[j]-floor(xp[j]);
-		yp[j]=ys[j]+delta*vs[j]/32;
-		yp[j]=yp[j]-floor(yp[j]);
-		h_Permut[j]=j;
-		// compute the cell number
-		int ix=floor(xp[j]*32);
-		int iy=floor(yp[j]*32);
-		assert(ix>=0 && ix<32);
-		assert(iy>=0 && iy<32);
-		int k=32*ix+iy;
-		h_keys[j]=k;
-	}
-
-	cl_radix_host2gpu();
-
-	// init the timers
-	histo_time=0;
-	scan_time=0;
-	reorder_time=0;
-	transpose_time=0;
-
-	printf("GPU second sorting\n");
-
-	cl_radix_sort();
-
-	printf("%f s in the histograms\n",histo_time);
-	printf("%f s in the scanning\n",scan_time);
-	printf("%f s in the reordering\n",reorder_time);
-	printf("%f s in the transposition\n",transpose_time);
-	printf("%f s total GPU time (without memory transfers)\n",sort_time);
-
-
-}
 
 // get the data from the GPU
 void cl_radix_recup_gpu(void){
 
 	cl_int status;
 
-	clFinish(CommandQueue);  // wait end of read
+	clFinish(command_que);  // wait end of read
 
 //	printf("\ncl_radix_recup_gpu step 1. %d \n", nkeys);
 //
@@ -685,7 +585,7 @@ void cl_radix_recup_gpu(void){
 //		printf("%u ,", h_keys[i]);
 //	}
 
-	status = clEnqueueReadBuffer( CommandQueue,
+	status = clEnqueueReadBuffer( command_que,
 			d_inKeys,
 			CL_TRUE, 0,
 			sizeof(uint)  * nkeys,
@@ -693,7 +593,7 @@ void cl_radix_recup_gpu(void){
 			0, NULL, NULL );
 
 	assert (status == CL_SUCCESS);
-	clFinish(CommandQueue);  // wait end of read
+	clFinish(command_que);  // wait end of read
 
 
 //	printf("\n\n after recup \n");
@@ -706,7 +606,7 @@ void cl_radix_recup_gpu(void){
 
 
 	/*printf("cl_radix_recup_gpu step 2. \n");
-	status = clEnqueueReadBuffer( CommandQueue,
+	status = clEnqueueReadBuffer( command_que,
 			d_inPermut,
 			CL_TRUE, 0,
 			sizeof(uint)  * nkeys,
@@ -714,10 +614,10 @@ void cl_radix_recup_gpu(void){
 			0, NULL, NULL );
 
 	assert (status == CL_SUCCESS);
-	clFinish(CommandQueue);  // wait end of read
+	clFinish(command_que);  // wait end of read
 
 	printf("cl_radix_recup_gpu step 3. \n");
-	status = clEnqueueReadBuffer( CommandQueue,
+	status = clEnqueueReadBuffer( command_que,
 			d_Histograms,
 			CL_TRUE, 0,
 			sizeof(uint)  * _RADIX * _GROUPS * _ITEMS,
@@ -727,7 +627,7 @@ void cl_radix_recup_gpu(void){
 
 
 	printf("cl_radix_recup_gpu step 4. \n");
-	status = clEnqueueReadBuffer( CommandQueue,
+	status = clEnqueueReadBuffer( command_que,
 			d_globsum,
 			CL_TRUE, 0,
 			sizeof(uint)  * _HISTOSPLIT,
@@ -737,7 +637,7 @@ void cl_radix_recup_gpu(void){
 
 	printf("cl_radix_recup_gpu step 5. \n");*/
 
-	//clFinish(CommandQueue);  // wait end of read
+	//clFinish(command_que);  // wait end of read
 }
 
 // put the data to the GPU
@@ -745,17 +645,7 @@ void cl_radix_host2gpu(){
 
 	cl_int status;
 
-
-	printf("\n\n before cl_radix_host2gpu \n");
-
-	int i=0;
-	for(i=nkeys-60;i<nkeys-10;i++){
-		printf("%d ,", h_keys[i]);
-	}
-	printf("\n\n cl_radix_host2gpu \n");
-
-
-	status = clEnqueueWriteBuffer( CommandQueue,
+	status = clEnqueueWriteBuffer( command_que,
 			d_inKeys,
 			CL_TRUE, 0,
 			sizeof(uint)  * nkeys,
@@ -763,10 +653,8 @@ void cl_radix_host2gpu(){
 			0, NULL, NULL );
 
 
-
 	if(status == CL_INVALID_COMMAND_QUEUE){
 		printf("if command_queue is not a valid command-queue.1 \n");
-
 	}else if(status == CL_INVALID_CONTEXT){
 		printf("if command_queue is not a valid command-queue.2 \n");
 	}else if(status == CL_INVALID_MEM_OBJECT){
@@ -787,8 +675,6 @@ void cl_radix_host2gpu(){
 		printf("if command_queue is not a valid command-queue.10 \n");
 	}
 
-
-
 //CL_MEM_OBJECT_ALLOCATION_FAILURE
 //	 if the context associated with command_queue and buffer are not the same or if the context associated with command_queue and events in event_wait_list are not the same.
 //	 if buffer is not a valid buffer object.
@@ -799,12 +685,10 @@ void cl_radix_host2gpu(){
 //	 if there is a failure to allocate memory for data store associated with buffer.
 //	 if there is a failure to allocate resources required by the OpenCL implementation on the device.
 
-
-
 	assert (status == CL_SUCCESS);
-	clFinish(CommandQueue);  // wait end of read
+	clFinish(command_que);  // wait end of read
 
-	status = clEnqueueWriteBuffer( CommandQueue,
+	status = clEnqueueWriteBuffer( command_que,
 			d_inPermut,
 			CL_TRUE, 0,
 			sizeof(uint)  * nkeys,
@@ -812,39 +696,9 @@ void cl_radix_host2gpu(){
 			0, NULL, NULL );
 
 	assert (status == CL_SUCCESS);
-	clFinish(CommandQueue);  // wait end of read
-
+	clFinish(command_que);  // wait end of read
 }
 
-// display
-void cl_radix_display(){
-	/*cl_radix_recup_gpu();
-
-	for(uint rad=0;rad<_RADIX;rad++){
-		for(uint gr=0;gr<_GROUPS;gr++){
-			for(uint it=0;it<_ITEMS;it++){
-				os <<"Radix="<<rad<<" Group="<<gr<<" Item="<<it<<" Histo="<<radi.h_Histograms[_GROUPS * _ITEMS * rad +_ITEMS * gr+it]<<endl;
-			}
-		}
-	}
-	os<<endl;
-
-	for(uint i=0;i<_HISTOSPLIT;i++){
-		os <<"histo "<<i<<" sum="<<radi.h_globsum[i]<<endl;
-	}
-	os<<endl;
-
-	for(uint i=0;i<radi.nkeys;i++){
-		os <<i<<" key="<<radi.h_keys[i]<<endl;
-	}
-	os<<endl;
-
-	for(uint i=0;i<radi.nkeys;i++){
-		os <<i<<" permut="<<radi.h_Permut[i]<<endl;
-	}
-	os << endl;*/
-
-}
 
 
 // compute the histograms
@@ -871,7 +725,7 @@ void cl_radix_histogram(uint pass){
 
 	cl_event eve;
 
-	err = clEnqueueNDRangeKernel(CommandQueue,
+	err = clEnqueueNDRangeKernel(command_que,
 			ckHistogram,
 			1, NULL,
 			&nbitems,
@@ -881,16 +735,18 @@ void cl_radix_histogram(uint pass){
 	//cout << err<<" , "<<CL_OUT_OF_RESOURCES<<endl;
 	assert(err== CL_SUCCESS);
 
-	clFinish(CommandQueue);
+	clFinish(command_que);
 
+
+	//////////////////////////////////////////////////
+	// For profiling
+	//////////////////////////////////////////////////
 	cl_ulong debut,fin;
-
 	err=clGetEventProfilingInfo (eve,
 			CL_PROFILING_COMMAND_QUEUED,
 			sizeof(cl_ulong),
 			(void*) &debut,
 			NULL);
-	//cout << err<<" , "<<CL_PROFILING_INFOnkeysOT_AVAILABLE<<endl;
 	assert(err== CL_SUCCESS);
 
 	err=clGetEventProfilingInfo (eve,
@@ -899,8 +755,9 @@ void cl_radix_histogram(uint pass){
 			(void*) &fin,
 			NULL);
 	assert(err== CL_SUCCESS);
-
 	histo_time += (float) (fin-debut)/1e9;
+	//////////////////////////////////////////////////
+
 
 
 }
@@ -935,7 +792,7 @@ void cl_radix_scan_histogram(void){
 
 	cl_event eve;
 
-	err = clEnqueueNDRangeKernel(CommandQueue,
+	err = clEnqueueNDRangeKernel(command_que,
 			ckScanHistogram,
 			1, NULL,
 			&nbitems,
@@ -945,7 +802,7 @@ void cl_radix_scan_histogram(void){
 	// cout << err<<","<< CL_INVALID_WORK_ITEM_SIZE<< " "<<nbitems<<" "<<nblocitems<<endl;
 	// cout <<CL_DEVICE_MAX_WORK_ITEM_SIZES<<endl;
 	assert(err== CL_SUCCESS);
-	clFinish(CommandQueue);
+	clFinish(command_que);
 
 	cl_ulong debut,fin;
 
@@ -981,7 +838,7 @@ void cl_radix_scan_histogram(void){
 	nblocitems=nbitems;
 	//nblocitems=1;
 
-	err = clEnqueueNDRangeKernel(CommandQueue,
+	err = clEnqueueNDRangeKernel(command_que,
 			ckScanHistogram,
 			1, NULL,
 			&nbitems,
@@ -989,7 +846,7 @@ void cl_radix_scan_histogram(void){
 			0, NULL, &eve);
 
 	assert(err== CL_SUCCESS);
-	clFinish(CommandQueue);
+	clFinish(command_que);
 
 	err=clGetEventProfilingInfo (eve,
 			CL_PROFILING_COMMAND_QUEUED,
@@ -1014,7 +871,7 @@ void cl_radix_scan_histogram(void){
 	nbitems = _RADIX* _GROUPS*_ITEMS/2;
 	nblocitems=nbitems/_HISTOSPLIT;
 
-	err = clEnqueueNDRangeKernel(CommandQueue,
+	err = clEnqueueNDRangeKernel(command_que,
 			ckPasteHistogram,
 			1, NULL,
 			&nbitems,
@@ -1022,7 +879,7 @@ void cl_radix_scan_histogram(void){
 			0, NULL, &eve);
 
 	assert(err== CL_SUCCESS);
-	clFinish(CommandQueue);
+	clFinish(command_que);
 
 	err=clGetEventProfilingInfo (eve,
 			CL_PROFILING_COMMAND_QUEUED,
@@ -1056,7 +913,7 @@ void cl_radix_reorder(uint pass){
 	size_t nbitems=_GROUPS*_ITEMS;
 
 
-	clFinish(CommandQueue);
+	clFinish(command_que);
 
 	err  = clSetKernelArg(ckReorder, 0, sizeof(cl_mem), &d_inKeys);
 	assert(err == CL_SUCCESS);
@@ -1088,7 +945,7 @@ void cl_radix_reorder(uint pass){
 
 	cl_event eve;
 
-	err = clEnqueueNDRangeKernel(CommandQueue,
+	err = clEnqueueNDRangeKernel(command_que,
 			ckReorder,
 			1, NULL,
 			&nbitems,
@@ -1098,7 +955,7 @@ void cl_radix_reorder(uint pass){
 	//cout << err<<" , "<<CL_MEM_OBJECT_ALLOCATION_FAILURE<<endl;
 
 	assert(err== CL_SUCCESS);
-	clFinish(CommandQueue);
+	clFinish(command_que);
 
 	cl_ulong debut,fin;
 

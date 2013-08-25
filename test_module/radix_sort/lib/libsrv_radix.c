@@ -11,6 +11,7 @@
 #include <string.h>
 #include "../../../qhgpu/qhgpu.h"
 #include "../../../qhgpu/connector.h"
+#include "../../../qhgpu/global.h"
 #include "cl_radix_sort.h"
 
 
@@ -21,10 +22,11 @@
 #endif
 
 
-cl_device_id* Devices;   // tableau des devices
+
 
 char exten[1000]; // list of extensions to opencl language
-
+cl_context context;
+cl_device_id dev;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -56,14 +58,10 @@ int radix_launch(struct qhgpu_service_request *sr)
 	h_keys = sr->mmap_addr;
 
 
-
 	printf("\n\n init radix =====\n");
-//	for(i=sr->mmap_size-60;i<sr->mmap_size-10;i++){
-//			printf("%u ,", h_keys[i]);
-//	}
 
-
-	init_cl_radix_sort(Context,Devices[numdev],CommandQueue,sr->mmap_size);
+	//init_cl_radix_sort(Context,Devices[numdev],CommandQueue,sr->mmap_size);
+	init_cl_radix_sort(sr->mmap_size);
 
 	printf("Radix= %d \n",_RADIX);
 	printf("Max Int= %d \n",(uint) _MAXINT);
@@ -71,26 +69,14 @@ int radix_launch(struct qhgpu_service_request *sr)
 
 	printf("\n\n recup =====\n");
 
-
-//	for(i=sr->mmap_size-60;i<sr->mmap_size-10;i++){
-//		printf("%u ,", h_keys[i]);
-//	}
-
-
 	////////////////////////////////////////////////////////////////////////
 	//read result
 	////////////////////////////////////////////////////////////////////////
 	cl_radix_recup_gpu();
 	////////////////////////////////////////////////////////////////////////
 
-
-
 	printf("\n\n");
 
-	//for(i=sr->mmap_size-60;i<sr->mmap_size-10;i++){
-//	for(i=0;i<50;i++){
-//		printf("%u ,", h_keys[i]);
-//	}
 
 	printf("%f s in the histograms\n",histo_time);
 	printf("%f s in the scanning\n",scan_time);
@@ -109,165 +95,7 @@ int radix_post(struct qhgpu_service_request *sr)
 
 int radix_prepare(){
 
-	//cout <<endl<< "Test cl_radix_sort class..."<<endl<<endl;
 
-	status = clGetPlatformIDs(0, NULL, &NbPlatforms);
-	assert (status == CL_SUCCESS);
-	assert(NbPlatforms > 0);
-	//cout << "Found "<<NbPlatforms<<" OpenCL platform"<<endl;
-
-	//cl_platform_id* Platforms = new cl_platform_id[NbPlatforms];
-	cl_platform_id* Platforms =(cl_platform_id *) malloc ( NbPlatforms * sizeof(cl_platform_id) );
-
-	status = clGetPlatformIDs(NbPlatforms, Platforms, NULL);
-	assert (status == CL_SUCCESS);
-
-	// affichage
-	char pbuf[1000];
-	int i=0;
-	for ( i = 0; i < (int)NbPlatforms; ++i) {
-		status = clGetPlatformInfo(Platforms[0],
-				CL_PLATFORM_VENDOR,
-				sizeof(pbuf),
-				pbuf,
-				NULL);
-		assert (status == CL_SUCCESS);
-
-		//cout << pbuf <<endl;
-	}
-
-	// affichage version opencl
-	//cout << "The OpenCL version is"<<endl;
-
-	for (i = 0; i < (int)NbPlatforms; ++i) {
-		status = clGetPlatformInfo(Platforms[0],
-				CL_PLATFORM_VERSION,
-				sizeof(pbuf),
-				pbuf,
-				NULL);
-		assert (status == CL_SUCCESS);
-
-		//cout << pbuf <<endl;
-	}
-	// affichages divers
-	for ( i = 0; i < (int)NbPlatforms; ++i) {
-		status = clGetPlatformInfo(Platforms[0],
-				CL_PLATFORM_NAME,
-				sizeof(pbuf),
-				pbuf,
-				NULL);
-		assert (status == CL_SUCCESS);
-
-		//cout << pbuf <<endl;
-	}
-
-	// comptage du nombre de devices
-	status = clGetDeviceIDs(Platforms[0],
-			CL_DEVICE_TYPE_ALL,
-			0,
-			NULL,
-			&NbDevices);
-	assert (status == CL_SUCCESS);
-	assert(NbDevices > 0);
-
-	//cout <<"Found "<<NbDevices<< " OpenCL device"<<endl;
-
-	// allocation du tableau des devices
-	//Devices = new cl_device_id[NbDevices];
-	Devices =(cl_device_id *) malloc ( NbDevices * sizeof(cl_device_id) );
-
-	// choix du numéro de device
-	// en général, le premier est le gpu
-	// (mais pas toujours)
-	numdev=0;
-	assert(numdev < NbDevices);
-
-	// remplissage du tableau des devices
-	status = clGetDeviceIDs(Platforms[0],
-			CL_DEVICE_TYPE_ALL,
-			NbDevices,
-			Devices,
-			NULL);
-	assert (status == CL_SUCCESS);
-
-
-	// informations diverses
-
-	// type du device
-	status = clGetDeviceInfo(
-			Devices[numdev],
-			CL_DEVICE_TYPE,
-			sizeof(cl_device_type),
-			(void*)&DeviceType,
-			NULL);
-	assert (status == CL_SUCCESS);
-
-
-	status = clGetDeviceInfo(
-			Devices[numdev],
-			CL_DEVICE_EXTENSIONS,
-			sizeof(exten),
-			exten,
-			NULL);
-	assert (status == CL_SUCCESS);
-
-	//cout<<"OpenCL extensions for this device:"<<endl;
-	//cout << exten<<endl<<endl;
-
-	// type du device
-	status = clGetDeviceInfo(
-			Devices[numdev],
-			CL_DEVICE_TYPE,
-			sizeof(cl_device_type),
-			(void*)&DeviceType,
-			NULL);
-	assert (status == CL_SUCCESS);
-
-	if (DeviceType == CL_DEVICE_TYPE_CPU){
-		//cout << "Calcul sur CPU"<<endl;
-	}
-	else{
-		//cout << "Calcul sur Carte Graphique"<<endl;
-	}
-
-	// mémoire cache du  device
-	cl_ulong memcache;
-	status = clGetDeviceInfo(
-			Devices[numdev],
-			CL_DEVICE_LOCAL_MEM_SIZE,
-			sizeof(cl_ulong),
-			(void*)&memcache,
-			NULL);
-	assert (status == CL_SUCCESS);
-
-	//cout << "GPU cache="<<memcache<<endl;
-	//cout << "Needed cache="<< _ITEMS*_RADIX*sizeof(int)<<endl;
-
-	// nombre de CL_DEVICE_MAX_COMPUTE_UNITS
-	cl_int cores;
-	status = clGetDeviceInfo(
-			Devices[numdev],
-			CL_DEVICE_MAX_COMPUTE_UNITS,
-			sizeof(cl_int),
-			(void*)&cores,
-			NULL);
-	assert (status == CL_SUCCESS);
-
-	//cout << "Compute units="<<cores<<endl;
-
-	// création d'un contexte opencl
-	//cout <<"Create the context"<<endl;
-	Context = clCreateContext(0,
-			1,
-			&Devices[numdev],
-			NULL,
-			NULL,
-			&status);
-
-	assert (status == CL_SUCCESS);
-	////////////////////////////////////////////////////////////////////////
-	/// eof create context
-	////////////////////////////////////////////////////////////////////////
 
 }
 
@@ -286,9 +114,20 @@ int radix_prepare(){
 
 static struct qhgpu_service radix_srv;
 
-int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*))
+int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*),
+		cl_context ctx,
+		cl_device_id* dv)
+
 {
 	printf("[libsrv_radix] Info: init radix service !!!!\n");
+
+	context= ctx;
+	dev  = dv;
+
+
+
+
+	build_cl_radix_sort(context,dev);
 
 	/////////////////////////////////////////////
 	//radix sort init
