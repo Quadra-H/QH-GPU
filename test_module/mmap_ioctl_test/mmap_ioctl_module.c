@@ -35,12 +35,13 @@ static int mmap_ioctl_callback(struct qhgpu_request *req) {
 
 
 static int __init minit(void) {
-	const unsigned int DATA_SIZE = 0x10000000;
+	const unsigned int DATA_SIZE = 0x10000;
 
 	struct qhgpu_request *req;
 
 	int* int_buf;
 	int* mmap_addr;
+	int i;
 
 	struct timeval t0, t1;
 	long tt;
@@ -63,8 +64,10 @@ static int __init minit(void) {
 	//set mmap_addr
 	mmap_addr = kmmap_addr;
 
-	//4096 * 2^10 == sizeof(int) * 2^10 * 2^10
-	int_buf = (unsigned int *)__get_free_pages(GFP_KERNEL, 10);
+	//4096 * 2^6 == sizeof(int) * 2^10 * 2^6
+	int_buf = (unsigned int *)__get_free_pages(GFP_KERNEL, 6);
+	for(i = 0 ; i < DATA_SIZE ; i++)
+		int_buf[i] = i;
 
 	if(int_buf == NULL) {
 		printk("[mmap ioctl module]int_buf __get_free_pages error.\n", tt);
@@ -72,7 +75,7 @@ static int __init minit(void) {
 	}
 
 	do_gettimeofday(&t0);
-	memcpy();
+	memcpy(mmap_addr, int_buf, DATA_SIZE);
 	do_gettimeofday(&t1);
 
 	tt = 1000000*(t1.tv_sec-t0.tv_sec) +
