@@ -1,6 +1,6 @@
 obj-m += test_module.o
 
-SUBDIRS = radix_sort
+SUBDIRS = mmap_ioctl_test
 
 all:  $(SUBDIRS)
 .PHONY: $(SUBDIRS)

@@ -26,7 +26,7 @@
 
 
 static int mmap_ioctl_callback(struct qhgpu_request *req) {
-	printk("[mmap ioctl module]TIME: %10lu MS\n", tt);
+	printk("[mmap ioctl module]mmap_ioctl_callback\n");
 	struct completion *c = (struct completion*)req->kdata;
 	complete(c);
 
@@ -35,13 +35,13 @@ static int mmap_ioctl_callback(struct qhgpu_request *req) {
 
 
 static int __init minit(void) {
-	const unsigned int DATA_SIZE = 0x10000;
+	const unsigned int DATA_SIZE = 0x1000000;
 
 	struct qhgpu_request *req;
 
 	int* int_buf;
 	int* mmap_addr;
-	int i;
+	int i, j;
 
 	struct timeval t0, t1;
 	long tt;
@@ -62,21 +62,32 @@ static int __init minit(void) {
 	req->mmap_size = DATA_SIZE;
 
 	//set mmap_addr
-	mmap_addr = kmmap_addr;
+	mmap_addr = req->kmmap_addr;
 
 	//4096 * 2^6 == sizeof(int) * 2^10 * 2^6
-	int_buf = (unsigned int *)__get_free_pages(GFP_KERNEL, 6);
+	int_buf = (unsigned int *)__get_free_pages(GFP_KERNEL, 16);
+	if(int_buf == NULL) {
+		printk("[mmap ioctl module]int_buf __get_free_pages error.\n");
+		return 1;
+	}
+
 	for(i = 0 ; i < DATA_SIZE ; i++)
 		int_buf[i] = i;
 
-	if(int_buf == NULL) {
-		printk("[mmap ioctl module]int_buf __get_free_pages error.\n", tt);
-		return;
-	}
-
 	do_gettimeofday(&t0);
-	memcpy(mmap_addr, int_buf, DATA_SIZE);
+	memcpy(mmap_addr, int_buf, DATA_SIZE*sizeof(int));
 	do_gettimeofday(&t1);
+
+	for( i = 0 ; i < DATA_SIZE ; i++ ) {
+		if(i != mmap_addr[i]) {
+			printk("[mmap ioctl module]memcpy error in index [%x].\n", i);
+			printk("[mmap ioctl module]mmap_addr dump\n");
+			for( j = i - 16 ; j < i + 16 ; j++ )
+				printk("[%x]", mmap_addr[i]);
+			printk("[mmap ioctl module]mmap_addr dump end\n");
+			break;
+		}
+	}
 
 	tt = 1000000*(t1.tv_sec-t0.tv_sec) +
 			((long)(t1.tv_usec) - (long)(t0.tv_usec));

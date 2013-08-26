@@ -1,1 +1,0 @@
-cmd_/root/git/QH-GPU/test_module/radix_sort/radix_sort_module.ko := ld -r -m elf_x86_64 -T /usr/src/linux-headers-3.5.0-37-generic/scripts/module-common.lds --build-id  -o /root/git/QH-GPU/test_module/radix_sort/radix_sort_module.ko /root/git/QH-GPU/test_module/radix_sort/radix_sort_module.o /root/git/QH-GPU/test_module/radix_sort/radix_sort_module.mod.o

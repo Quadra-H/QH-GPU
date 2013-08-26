@@ -10,7 +10,7 @@
 #include <string.h>
 #include <poll.h>
 #include "connector.h"
-#include "global.h"
+//#include "global.h"
 
 #include "qhgpu.h"
 #include "qhgpu_log.h"
@@ -121,10 +121,6 @@ int qc_init(void) {
 		perror("device write fail!");
 		abort();
 	}/**/
-
-
-
-
 
 
 

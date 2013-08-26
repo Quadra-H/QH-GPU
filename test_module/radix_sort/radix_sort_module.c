@@ -26,24 +26,6 @@
 #include "./lib/cl_radix_sort_param.h"
 
 
-
-#define BATCH_NR 3
-#define MAX_MEM_SZ (1024)
-#define MIN_MEM_SZ (128)
-
-
-
-// mapped memory address
-static char* mmap_addr;
-//const int ARRAY_SIZE = 1<<20;
-//const int MAX_INT = 1<<24;
-
-//#define _N (1<<23)
-static unsigned int* result;
-//static unsigned int* h_keys;
-static unsigned int* b;
-
-
 static int test_gpu_callback(struct qhgpu_request *req)
 {
 

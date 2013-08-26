@@ -31,10 +31,13 @@ int mmap_ioctl_launch(struct qhgpu_service_request *sr)
 
 	mmap_data = sr->mmap_addr;
 	mmap_size = sr->mmap_size;
+	printf("[libsrv_mmap_ioctl] mmap_addr[%p], mmap_size[%x]\n", mmap_data, mmap_size);
 
-	for(i = mmap_size - 60 ; i < mmap_size ; i++){
-		printf("%d ,", h_keys[i]);
-	}
+	for(i = 0 ; i < 0x100 ; i++)
+		printf("%x ,", mmap_data[i]);
+	printf("\n");
+	for(i = mmap_size - 0x100 ; i < mmap_size ; i++)
+		printf("%x ,", mmap_data[i]);
 
 	return 0;
 }
@@ -52,17 +55,17 @@ int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*))
 {
 	printf("[libsrv_mmap_ioctl] Info: mmap_ioctl_service\n");
 
-	sprintf(radix_srv.name, "mmap_ioctl_service");
-	radix_srv.sid = 1;
-	radix_srv.compute_size = mmap_ioctl_cs;
-	radix_srv.launch = mmap_ioctl_launch;
-	radix_srv.post = mmap_ioctl_post;
+	sprintf(mmap_ioctl_srv.name, "mmap_ioctl_service");
+	mmap_ioctl_srv.sid = 1;
+	mmap_ioctl_srv.compute_size = mmap_ioctl_cs;
+	mmap_ioctl_srv.launch = mmap_ioctl_launch;
+	mmap_ioctl_srv.post = mmap_ioctl_post;
 
-	return reg_srv(&radix_srv, lh);
+	return reg_srv(&mmap_ioctl_srv, lh);
 }
 
 int finit_service(void *lh, int (*unreg_srv)(const char*))
 {
 	printf("[libsrv_default] Info: mmap_ioctl_test finit\n");
-	return unreg_srv(radix_srv.name);
+	return unreg_srv(mmap_ioctl_srv.name);
 }

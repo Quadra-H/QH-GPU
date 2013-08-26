@@ -477,7 +477,6 @@ default:	//
 	break;
 	}
 
-	printk("qhgpu_ioctl call !!! %d \n", err);
 	return err;
 }
 
@@ -542,16 +541,19 @@ struct vm_operations_struct qhgpu_vm_ops = {
 // END vm_ops ////////////////////////////////
 
 static int qhgpu_mmap(struct file *filp, struct vm_area_struct *vma) {
-	printk("qhgpu_mmap. filep data. {%p, %p}\n", filp, filp->private_data);
-	printk("qhgpu_mmap vma info. {%p, %p}\n", vma, vma->vm_private_data);
+	//printk("qhgpu_mmap. filep data. {%p, %p}\n", filp, filp->private_data);
+	//printk("qhgpu_mmap vma info. {%p, %p}\n", vma, vma->vm_private_data);
 
 	vma->vm_ops = &qhgpu_vm_ops;
 	vma->vm_flags |= VM_RESERVED;
 	/* assign the file private data to the vm private data */
 
 	/////////////////
-	filp->private_data = (char *)__get_free_pages(GFP_KERNEL, 10);
-
+	filp->private_data = (char *)__get_free_pages(GFP_KERNEL, 20);
+	if( filp->private_data == NULL ) {
+		printk("qhgpu_mmap alloc free pages error\n");
+		return -1;
+	}
 
 	qhgpudev.mmap_private_data = filp->private_data;
 	////////////
