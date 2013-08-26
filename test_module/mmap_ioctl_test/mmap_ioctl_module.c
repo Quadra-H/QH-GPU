@@ -35,7 +35,7 @@ static int mmap_ioctl_callback(struct qhgpu_request *req) {
 
 
 static int __init minit(void) {
-	const unsigned int DATA_SIZE = 0x1000000;
+	const unsigned int DATA_SIZE = 0x100000;
 
 	struct qhgpu_request *req;
 
@@ -64,8 +64,8 @@ static int __init minit(void) {
 	//set mmap_addr
 	mmap_addr = req->kmmap_addr;
 
-	//4096 * 2^6 == sizeof(int) * 2^10 * 2^6
-	int_buf = (unsigned int *)__get_free_pages(GFP_KERNEL, 16);
+	//4MB
+	int_buf = (unsigned int *)__get_free_pages(GFP_KERNEL, 10);
 	if(int_buf == NULL) {
 		printk("[mmap ioctl module]int_buf __get_free_pages error.\n");
 		return 1;
