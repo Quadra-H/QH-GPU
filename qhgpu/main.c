@@ -499,9 +499,6 @@ void vm_close(struct vm_area_struct *vma) {
  * it does the actual mapping between kernel and user space memory
  */
 static int vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
-
-
-
 	struct page *page;
 	char* mmap_buf = (char*) vma->vm_private_data;
 
@@ -696,6 +693,9 @@ static int qhgpu_clean(void) {
 	class_destroy(qhgpudev.cls);
 
 	unregister_chrdev_region(qhgpudev.devno, 1);
+
+	//free mmap buffer
+	free_pages(qhgpudev.mmap_private_data, 10);
 
 	return 1;
 }
@@ -904,8 +904,6 @@ void qhgpu_vfree(void *p) {
 EXPORT_SYMBOL_GPL( qhgpu_vfree);
 
 char* qhgpu_mmap_addr_pass() {
-	printk("qhgpu_mmap_addr_pass {%p}\n", qhgpudev.mmap_private_data);
-
 	return qhgpudev.mmap_private_data;
 }
 EXPORT_SYMBOL_GPL(qhgpu_mmap_addr_pass);
