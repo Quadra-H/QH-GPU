@@ -548,8 +548,7 @@ static int qhgpu_mmap(struct file *filp, struct vm_area_struct *vma) {
 	vma->vm_flags |= VM_RESERVED;
 	/* assign the file private data to the vm private data */
 
-	/////////////////
-	filp->private_data = (char *)__get_free_pages(GFP_KERNEL, 20);
+	filp->private_data = (char *)__get_free_pages(GFP_KERNEL, 10);
 	if( filp->private_data == NULL ) {
 		printk("qhgpu_mmap alloc free pages error\n");
 		return -1;
