@@ -35,6 +35,8 @@ static int mmap_ioctl_callback(struct qhgpu_request *req) {
 
 
 static int __init minit(void) {
+	//max int data_size == 0x100000
+	//max char data_size == 0x400000 == pagesize * 2^10
 	const unsigned int DATA_SIZE = 0x100000;
 
 	struct qhgpu_request *req;
@@ -97,6 +99,9 @@ static int __init minit(void) {
 	qhgpu_call_sync(req);
 
 	printk("[mmap ioctl module]init\n");
+
+	//free_pages(buffer, order);
+	free_pages(int_buf, 10);
 
 	return 0;
 }
