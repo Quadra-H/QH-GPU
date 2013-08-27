@@ -69,7 +69,7 @@ LIST_HEAD(post_exec_reqs);
 LIST_HEAD(done_reqs);
 
 static int init_mmap() {
-	mmap_address = mmap(NULL, 1<<29, PROT_READ | PROT_WRITE, MAP_SHARED, devfd, 0);
+	mmap_address = mmap(NULL, 0x400000, PROT_READ | PROT_WRITE, MAP_SHARED, devfd, 0);
 	if (mmap_address == MAP_FAILED) {
 		printf("address map failed.\n");
 		perror("mmap");
@@ -284,7 +284,9 @@ int qc_init(void) {
 }
 
 static int qc_finit(void) {
-	int i;
+	//unmap mmap
+	if( munmap(mmap_address, 0x400000) == -1 )
+		printf("[qhgpu connector] error : unmap fail.\n");
 
 	ioctl(devfd, QHGPU_IOC_SET_STOP);
 	close(devfd);
