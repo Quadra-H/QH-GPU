@@ -68,18 +68,56 @@ LIST_HEAD(running_reqs);
 LIST_HEAD(post_exec_reqs);
 LIST_HEAD(done_reqs);
 
-static int init_mmap() {
-	mmap_address = mmap(NULL, 0x400000, PROT_READ | PROT_WRITE, MAP_SHARED, devfd, 0);
+static char** mmap_addr_arr;
+
+static int init_mmap(int cnt) {
+	//b
+	/*mmap_address = mmap(NULL, 0x400000, PROT_READ | PROT_WRITE, MAP_SHARED, devfd, 0);
 	if (mmap_address == MAP_FAILED) {
 		printf("address map failed.\n");
 		perror("mmap");
 		return -1;
+	}*/
+
+	mmap_addr_arr = (char**)malloc(sizeof(char*)*cnt);
+	int i=0;
+	for(i=0;i<cnt;i++){
+
+		mmap_addr_arr[i] =  mmap(NULL, 0x400000, PROT_READ | PROT_WRITE, MAP_SHARED, devfd, 0);
+		if( mmap_addr_arr[i] == NULL ) {
+			printf("qhgpu_mmap alloc free pages error %d\n",i);
+			return -1;
+		}
+		printf("[qhpgpu connector]mmap_addr_arr alloc. [%p]\n", mmap_addr_arr[i]);
 	}
 
-	printf("init_mmap {%p}\n", mmap_address);
+	//
+
+	/*mmap_addr_arr[1] = mmap(NULL, 0x400000, PROT_READ | PROT_WRITE, MAP_SHARED, devfd, 0);
+	if (mmap_addr_arr[1] == MAP_FAILED) {
+		printf("address map failed1.\n");
+		perror("mmap");
+		return -1;
+	}
+	mmap_addr_arr[2] = mmap(NULL, 0x400000, PROT_READ | PROT_WRITE, MAP_SHARED, devfd, 0);
+	if (mmap_addr_arr[2] == MAP_FAILED) {
+		printf("address map failed2.\n");
+		perror("mmap");
+		return -1;
+	}
+	mmap_addr_arr[3] = mmap(NULL, 0x400000, PROT_READ | PROT_WRITE, MAP_SHARED, devfd, 0);
+	if (mmap_addr_arr[3] == MAP_FAILED) {
+		printf("address map failed3.\n");
+		perror("mmap");
+		return -1;
+	}*/
+	//
+
+	//printf("[qhgpu connector]init mmap done. [%p][%p][%p][%p]\n", mmap_addr_arr[0], mmap_addr_arr[1], mmap_addr_arr[2], mmap_addr_arr[3]);
 
 	return 0;
 }
+
 
 int qc_init(void) {
 	int i, len, r;
@@ -94,7 +132,7 @@ int qc_init(void) {
 	printf("open dev [%s], ret fd = %d\n", qhgpu_dev_path, devfd);
 
 	// init memory map
-	init_mmap();
+
 
 	gpu_init();
 	// alloc GPU Pinned memory buffers
@@ -121,6 +159,10 @@ int qc_init(void) {
 		perror("device write fail!");
 		abort();
 	}/**/
+
+
+
+
 
 
 
@@ -380,6 +422,8 @@ static void qc_init_service_request(struct _qhgpu_sritem *item,
 
 
 
+//static int req_call_count = 0;
+
 static int qc_get_next_service_request(void)
 {
 	int err;
@@ -422,7 +466,11 @@ static int qc_get_next_service_request(void)
 				abort();
 			}
 		} else {
-			kureq.mmap_addr = mmap_address;
+
+			char *num = (char*)kureq.data;
+			printf("kureq.data: %s \n",num);
+			kureq.mmap_addr = mmap_addr_arr[num[0]-'0'];
+			//req_call_count++;
 			qc_init_service_request(sreq, &kureq);
 			return 0;
 		}
@@ -437,10 +485,6 @@ static int qc_get_next_service_request(void)
     }
 	printf("qc_get_next_service_request finish!!");
 }
-
-
-
-
 
 
 
@@ -570,7 +614,21 @@ int main(int argc, char *argv[])
 	qc_init();
 
 
-	qc_load_all_services(service_lib_dir,context,devices);
+	int service_cnt = qc_load_all_services(service_lib_dir,context,devices);
+
+	printf("service_cnt: %d \n",service_cnt);
+	if(service_cnt == 0) service_cnt = 1;
+
+
+	int r = ioctl(devfd, QHGPU_IOC_SET_MMAP,(unsigned long)service_cnt);
+	if (r < 0) {
+		printf("device write fail!");
+		perror("device write fail!");
+		abort();
+	}
+	init_mmap(service_cnt);
+
+
 	qc_main_loop();
 	qc_finit();
 

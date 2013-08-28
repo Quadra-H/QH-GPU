@@ -11,7 +11,6 @@
 #include <string.h>
 #include "../../../qhgpu/qhgpu.h"
 #include "../../../qhgpu/connector.h"
-#include "../../../qhgpu/global.h"
 #include "cl_radix_sort.h"
 
 

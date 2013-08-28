@@ -41,6 +41,13 @@ static struct kmem_cache *qhgpu_request_cache;
 static struct kmem_cache *qhgpu_request_item_cache;
 static struct kmem_cache *qhgpu_sync_call_data_cache;
 
+
+//
+static char** mmap_addr_arr;
+static int module_cnt=0;
+//
+
+
 struct _qhgpu_mempool {
 	unsigned long uva;
 	unsigned long kva;
@@ -84,6 +91,9 @@ struct _qhgpu_dev {
 	int state;
 
 	char* mmap_private_data;
+
+	char** kmmap_addr_arr;
+
 };
 
 struct _qhgpu_request_item {
@@ -449,32 +459,76 @@ static long qhgpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) 
 		return -ENOTTY;
 
 	if (_IOC_DIR(cmd) & _IOC_READ)
-	err = !access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
+		err = !access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
 	else if (_IOC_DIR(cmd) & _IOC_WRITE)
-	err = !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
+		err = !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
 	if (err)
 		return -EFAULT;
 
 	switch (cmd) {
 
 	case QHGPU_IOC_SET_GPU_BUFS:
-	printk("qhgpu_ioctl QHGPU_IOC_SET_GPU_BUFS. \n");
-	err = set_gpu_mempool((char*) arg);
-	break;
+		printk("qhgpu_ioctl QHGPU_IOC_SET_GPU_BUFS. \n",arg);
+		err = set_gpu_mempool((char*) arg);
+		break;
 
-	case QHGPU_IOC_GET_GPU_BUFS:
-	printk("qhgpu_ioctl QHGPU_IOC_GET_GPU_BUFS. \n");
-	//err = dump_gpu_bufs((char*)arg);
-	break;
+	case QHGPU_IOC_SET_MMAP:
+		printk("qhgpu_ioctl QHGPU_IOC_SET_MMAP.  %ld\n",arg);
 
-case QHGPU_IOC_SET_STOP:
-	printk("qhgpu_ioctl QHGPU_IOC_SET_STOP. \n");
-	//err = terminate_all_requests();
-	break;
 
-default:	//
-	err = -ENOTTY;
-	break;
+		qhgpudev.kmmap_addr_arr=(char**)vmalloc(sizeof(char*)*arg);
+		mmap_addr_arr = (char**)vmalloc(sizeof(char*)*arg);
+		int i=0;
+		for(i=0;i<arg;i++){
+
+			mmap_addr_arr[i] = (char *)__get_free_pages(GFP_KERNEL, 10);
+			if( mmap_addr_arr[i] == NULL ) {
+				printk("qhgpu_mmap alloc free pages error %d\n",i);
+				return -1;
+			}
+			printk("[qhpgpu module]mmap_addr_arr alloc. [%p]\n", mmap_addr_arr[i]);
+		}
+
+
+		/*// multi mmap test
+		mmap_addr_arr[0] = (char *)__get_free_pages(GFP_KERNEL, 10);
+		if( mmap_addr_arr[0] == NULL ) {
+			printk("qhgpu_mmap alloc free pages error0\n");
+			return -1;
+		}
+		mmap_addr_arr[1] = (char *)__get_free_pages(GFP_KERNEL, 10);
+		if( mmap_addr_arr[1] == NULL ) {
+			printk("qhgpu_mmap alloc free pages error1\n");
+			return -1;
+		}
+		mmap_addr_arr[2] = (char *)__get_free_pages(GFP_KERNEL, 10);
+		if( mmap_addr_arr[2] == NULL ) {
+			printk("qhgpu_mmap alloc free pages error2\n");
+			return -1;
+		}
+		mmap_addr_arr[3] = (char *)__get_free_pages(GFP_KERNEL, 10);
+		if( mmap_addr_arr[3] == NULL ) {
+			printk("qhgpu_mmap alloc free pages error3\n");
+			return -1;
+		}
+		//
+		printk("[qhpgpu module]mmap_addr_arr alloc. [%p][%p][%p][%p]\n", mmap_addr_arr[0], mmap_addr_arr[1], mmap_addr_arr[2], mmap_addr_arr[3]);
+*/
+
+
+
+		//err = dump_gpu_bufs((char*)arg);
+		break;
+
+	case QHGPU_IOC_SET_STOP:
+		printk("qhgpu_ioctl QHGPU_IOC_SET_STOP. \n");
+		//err = terminate_all_requests();
+		break;
+
+
+	default:	//
+		err = -ENOTTY;
+		break;
 	}
 
 	return err;
@@ -537,6 +591,11 @@ struct vm_operations_struct qhgpu_vm_ops = {
 };
 // END vm_ops ////////////////////////////////
 
+
+//
+static int mmap_count = 0;
+//
+
 static int qhgpu_mmap(struct file *filp, struct vm_area_struct *vma) {
 	//printk("qhgpu_mmap. filep data. {%p, %p}\n", filp, filp->private_data);
 	//printk("qhgpu_mmap vma info. {%p, %p}\n", vma, vma->vm_private_data);
@@ -545,20 +604,31 @@ static int qhgpu_mmap(struct file *filp, struct vm_area_struct *vma) {
 	vma->vm_flags |= VM_RESERVED;
 	/* assign the file private data to the vm private data */
 
-	filp->private_data = (char *)__get_free_pages(GFP_KERNEL, 10);
+	//b
+	/*filp->private_data = (char *)__get_free_pages(GFP_KERNEL, 10);
 	if( filp->private_data == NULL ) {
 		printk("qhgpu_mmap alloc free pages error\n");
 		return -1;
-	}
+	}*/
 
-	qhgpudev.mmap_private_data = filp->private_data;
-	////////////
+
+	//b
+	//qhgpudev.mmap_private_data = filp->private_data;
+
+	printk("[qhgpu_module]mmap %d\n", mmap_count);
+
+	//
+	filp->private_data = mmap_addr_arr[mmap_count];
+	qhgpudev.kmmap_addr_arr[mmap_count] = filp->private_data;
+	mmap_count++;
+	//
 
 	vma->vm_private_data = filp->private_data;
 	//vm_open(vma);
 
 	return 0;
 }
+
 
 static unsigned int qhgpu_poll(struct file *filp, poll_table *wait) {
 	unsigned int mask = 0;
@@ -684,8 +754,10 @@ static int qhgpu_init(void) {
 		}
 	}
 
+
 	return result;
 }
+
 
 static int qhgpu_clean(void) {
 	device_destroy(qhgpudev.cls, qhgpudev.devno);
@@ -694,11 +766,15 @@ static int qhgpu_clean(void) {
 
 	unregister_chrdev_region(qhgpudev.devno, 1);
 
+	//b
 	//free mmap buffer
-	free_pages(qhgpudev.mmap_private_data, 10);
+	//free_pages(qhgpudev.mmap_private_data, 10);
+
+	//todo : free_pages
 
 	return 1;
 }
+
 
 void qhgpu_free_request(struct qhgpu_request* req) {
 	kmem_cache_free(qhgpu_request_cache, req);
@@ -903,10 +979,24 @@ void qhgpu_vfree(void *p) {
 }
 EXPORT_SYMBOL_GPL( qhgpu_vfree);
 
-char* qhgpu_mmap_addr_pass() {
-	return qhgpudev.mmap_private_data;
+
+
+
+char* qhgpu_mmap_addr_pass(int i) {
+	printk("[qhgpu_module]mmap_addr_pass %d [%p]\n", i, qhgpudev.kmmap_addr_arr[i]);
+
+	//return qhgpudev.mmap_private_data;
+	return qhgpudev.kmmap_addr_arr[i];
 }
 EXPORT_SYMBOL_GPL(qhgpu_mmap_addr_pass);
+
+int qhgpu_mmap_id() {
+	//return qhgpudev.mmap_private_data;
+	return module_cnt++;
+}
+EXPORT_SYMBOL_GPL(qhgpu_mmap_id);
+
+
 
 static int __init mod_init(void) {
 	printk("init_mod\n");

@@ -149,7 +149,7 @@ int qc_load_all_services(const char *dir)
 		e += qc_load_service(libpath);
 	}
 	globfree(&glb);
-	return e;
+	return i;
 }
 
 static int __unload_service(struct _qhgpu_sitem* i)

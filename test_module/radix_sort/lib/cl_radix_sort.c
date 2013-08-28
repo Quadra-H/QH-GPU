@@ -2,7 +2,6 @@
 #include <string.h>
 #include "cl_radix_sort.h"
 //#include "../../../qhgpu/connector.h"
-#include "../../../qhgpu/global.h"
 
 #define max(a,b) (((a)>(b))?(a):(b))
 

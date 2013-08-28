@@ -217,7 +217,7 @@ static int __init minit(void) {
 
 
 	// init mmap_addr
-	mmap_addr = qhgpu_mmap_addr_pass();
+	mmap_addr = qhgpu_mmap_addr_pass(0);
 	memcpy(mmap_addr, "mmap_test!", 10);
 
 

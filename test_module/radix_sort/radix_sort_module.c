@@ -26,6 +26,8 @@
 #include "./lib/cl_radix_sort_param.h"
 
 
+#define BATCH_NR 3
+
 static int test_gpu_callback(struct qhgpu_request *req)
 {
 
@@ -200,12 +202,24 @@ static int __init minit(void) {
 	*/
 
 
+
+
 	strcpy(req->service_name, "radix_service");
 	req->callback = test_gpu_callback;
 	//////////////////////////////////////////////////////
 	// init mmap_addr
 	//////////////////////////////////////////////////////
-	req->kmmap_addr = qhgpu_mmap_addr_pass();
+
+	int req_id = qhgpu_mmap_id();
+
+
+	buf = qhgpu_vmalloc(sizeof( char )*3);
+
+	sprintf (buf, "%d", req_id);
+	//memcpy(buf, req_id+'0',sizeof(char)*3);
+	printk("req_id %d , %c \n", req_id, buf[0]);
+	req->udata = buf;
+	req->kmmap_addr = qhgpu_mmap_addr_pass(req_id);
 	req->mmap_size = _N;
 
 
@@ -245,7 +259,7 @@ static int __init minit(void) {
 
 
 	/////sync call done/////////////////////////
-	req->kmmap_addr = qhgpu_mmap_addr_pass();
+	req->kmmap_addr = qhgpu_mmap_addr_pass(0);
 	h_keys = ( unsigned int * )req->kmmap_addr;
 
 	printk("\n\n");
@@ -262,10 +276,6 @@ static int __init minit(void) {
 
 
 
-
-
-	/* we want DMA-capable memory,
-	 * and we can sleep if needed */
 	//unsigned int cpu_keys[ARRAY_SIZE];
 
 	if((counts = (unsigned int *)__get_free_pages(GFP_KERNEL, 10))==NULL)return;
@@ -279,12 +289,12 @@ static int __init minit(void) {
 
 
 	//if ( (counts = (unsigned int *)vmalloc(_N * ( sizeof( int )), GFP_DMA | GFP_KERNEL)) == NULL )
-	/*if ( (counts = (unsigned int *)vmalloc(_N * ( sizeof( int ))) == NULL ))
-		return;
-	if ( (temp = (unsigned int *)vmalloc(_N * ( sizeof( int ))) == NULL ))
-		return;
+//	if ( (counts = (unsigned int *)vmalloc(_N * ( sizeof( int ))) == NULL ))
+//		return;
+//	if ( (temp = (unsigned int *)vmalloc(_N * ( sizeof( int ))) == NULL ))
+//		return;
 
-		*/
+
 
 	//unsigned int* cpu_keys =(unsigned int *)vmalloc(cpu_size * ( sizeof( int )));
 	unsigned int* cpu_keys = (unsigned int*)__get_free_pages(GFP_KERNEL, 10);

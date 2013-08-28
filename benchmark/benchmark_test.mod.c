@@ -17,7 +17,7 @@ __attribute__((section(".gnu.linkonce.this_module"))) = {
 static const struct modversion_info ____versions[]
 __used
 __attribute__((section("__versions"))) = {
-	{ 0xa8c16cf3, "module_layout" },
+	{ 0xb9d3067e, "module_layout" },
 	{ 0xed7f1fa9, "qhgpu_call_sync" },
 	{ 0xf432dd3d, "__init_waitqueue_head" },
 	{ 0x47be1158, "qhgpu_vmalloc" },

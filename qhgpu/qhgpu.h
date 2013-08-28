@@ -70,10 +70,10 @@ struct qhgpu_ku_response {
 
 #define QHGPU_IOC_SET_GPU_BUFS \
     _IOW(QHGPU_IOC_MAGIC, 1, struct qhgpu_gpu_mem_info[QHGPU_BUF_NR])
-#define QHGPU_IOC_GET_GPU_BUFS \
+#define QHGPU_IOC_SET_MMAP \
     _IOR(QHGPU_IOC_MAGIC, 2, struct qhgpu_gpu_mem_info[QHGPU_BUF_NR])
 #define QHGPU_IOC_SET_STOP     _IO(QHGPU_IOC_MAGIC, 3)
-#define QHGPU_IOC_GET_REQS     _IOR(QHGPU_IOC_MAGIkC, 4,
+#define QHGPU_IOC_GET_REQS     _IOR(QHGPU_IOC_MAGIC, 4,
 
 #define QHGPU_IOC_MAXNR 4
 
@@ -126,7 +126,11 @@ struct qhgpu_service_request {
 
 struct qhgpu_request;
 
-char* qhgpu_mmap_addr_pass(void);
+
+
+char* qhgpu_mmap_addr_pass(int i);
+int qhgpu_mmap_id();
+
 extern void qhgpu_vfree(void *p);
 extern void* qhgpu_vmalloc(unsigned long nbytes);
 extern int qhgpu_call_sync(struct qhgpu_request *req);
