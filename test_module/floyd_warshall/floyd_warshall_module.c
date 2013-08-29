@@ -5,22 +5,13 @@
  * All rights reserved.
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/list.h>
-#include <linux/spinlock.h>
-#include <linux/gfp.h>
-#include <linux/kthread.h>
-#include <linux/proc_fs.h>
-#include <linux/mm.h>
-#include <linux/mm_types.h>
-#include <linux/string.h>
-#include <linux/uaccess.h>
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/syscalls.h>
+#include <linux/fcntl.h>
+#include <asm/uaccess.h>
 #include <linux/random.h>
-#include <asm/page.h>
-#include <linux/timex.h>
 
 #include "../../qhgpu/qhgpu.h"
 
@@ -101,11 +92,12 @@ int kfloyd_warshall_cpu(unsigned int* adj_mat, const unsigned int MAT_SIZE) {
 
 
 static int floyd_warshall_module_callback(struct qhgpu_request *req) {
+	//req->out have return data
+	struct completion *c;
+
 	printk("[floyd warshall kernel module]callback start.\n");
 
-	//req->out have return data
-
-	struct completion *c = (struct completion*)req->kdata;
+	c = (struct completion*)req->kdata;
 	complete(c);
 
 	return 0;
