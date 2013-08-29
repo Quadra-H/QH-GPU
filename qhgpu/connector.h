@@ -10,11 +10,9 @@
 #ifndef __CONNECTOR_H__
 #define __CONNECTOR_H__
 
+#include <assert.h>
 #include "qhgpu.h"
 #include "list.h"
-#include<assert.h>
-
-
 
 #if defined (__APPLE__) || defined(MACOSX)
 #include <OpenCL/opencl.h>
@@ -22,21 +20,16 @@
 #include <CL/opencl.h>
 #endif
 
-
-
-
-
-
+#define QC_LOG
 
 struct qhgpu_service {
-    char name[QHGPU_SERVICE_NAME_SIZE];
-    int sid;
-    int (*compute_size)(struct qhgpu_service_request *sreq);
-    int (*prepare)(struct qhgpu_service_request *sreq, cl_context GPUContext,
-    		cl_device_id dev,
-    		cl_command_queue CommandQue);
-    int (*launch)(struct qhgpu_service_request *sreq);
-    int (*post)(struct qhgpu_service_request *sreq);
+	char name[QHGPU_SERVICE_NAME_SIZE];
+	int sid;
+	int (*compute_size)(struct qhgpu_service_request *sreq);
+	int (*prepare)(struct qhgpu_service_request *sreq, cl_context GPUContext,
+			cl_device_id dev, cl_command_queue CommandQue);
+	int (*launch)(struct qhgpu_service_request *sreq);
+	int (*post)(struct qhgpu_service_request *sreq);
 };
 
 struct _qhgpu_sitem {
@@ -47,14 +40,6 @@ struct _qhgpu_sitem {
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE (1024*1024*2)
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif
