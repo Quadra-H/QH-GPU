@@ -158,37 +158,12 @@ void rxSort(int *data, int size, int p, int k) {
 }
 
 
-
-
-
-
-
-static int __init minit(void) {
-	printk("test_module init\n");
-	struct completion cs[BATCH_NR];
-
-	int err=0;
-
-	size_t nbytes;
-	unsigned int cur;
-	unsigned long sz;
-	struct timeval t0, t1;
-	long tt;
-
-
-	struct qhgpu_request *req;
-	char *buf;
-
-	//// alloc request
-	req = qhgpu_alloc_request(_N,"radix_service");
-	if (!req) {
-		printk("request null\n");
-		return 0;
-	}
-	req->callback = test_gpu_callback;
-	//////////////////////////////////////////////////////
-	// init mmap_addr
-	//////////////////////////////////////////////////////
+unsigned int cur;
+unsigned long sz;
+struct timeval t0, t1;
+long tt;
+struct qhgpu_request *req;
+void batch_data_loader(){
 
 
 	unsigned int* h_keys = ( unsigned int * )req->kmmap_addr;
@@ -207,6 +182,83 @@ static int __init minit(void) {
 	printk("========================\n");
 	///////////////////////////////////////////////////
 
+	/*int* batch_cnt = (int*)req->in;
+	(*batch_cnt)--;
+
+	if(*batch_cnt==0){
+
+
+
+	}*/
+
+
+}
+void batch_data_result(){
+
+	int i=0;
+	/////sync call done/////////////////////////
+	req->kmmap_addr = qhgpu_mmap_addr_pass(req->id);
+	unsigned int* h_keys  = ( unsigned int * )req->kmmap_addr;
+
+	printk("\n\n");
+	printk("========================\n");
+	for(i = 0; i < 50; i++){
+		printk("%u ,",h_keys[i]);
+	}
+	printk("========================\n");
+	///////////////////////////////////////////////////
+}
+
+static int __init minit(void) {
+	printk("test_module init\n");
+	struct completion cs[BATCH_NR];
+
+	int err=0;
+
+	size_t nbytes;
+
+
+
+	char *buf;
+
+	//// alloc request
+	req = qhgpu_alloc_request(_N, "batch_service");
+	if (!req) {
+		printk("request null\n");
+		return 0;
+	}
+	req->callback = test_gpu_callback;
+	//////////////////////////////////////////////////////
+	// init mmap_addr
+	//////////////////////////////////////////////////////
+	struct qhgpu_module *module = (struct qhgpu_module*)vmalloc(sizeof(struct qhgpu_module));
+	module->batch_data_loader = batch_data_loader;
+	module->batch_data_result = batch_data_result;
+	req->module = module;
+
+
+
+	unsigned int* h_keys = ( unsigned int * )req->kmmap_addr;
+	unsigned int i=0;
+	unsigned int num;
+	for(i = 0; i < _N; i++){
+		get_random_bytes(&num, sizeof(i));
+		h_keys[i] = (num% _MAXINT);
+	}
+
+	printk("\n\nbefore sort");
+	printk("========================\n");
+	for(i = 0; i < 50; i++){
+		printk("%u ,",h_keys[i]);
+	}
+	printk("========================\n");
+	///////////////////////////////////////////////////
+
+	//int* batch_cnt = (int*)req->in;
+	//(*batch_cnt)--;
+
+
+
 
 	do_gettimeofday(&t0);
 	///////////////////////////////////////////////////
@@ -224,23 +276,7 @@ static int __init minit(void) {
 
 
 
-
-
-
-
-	/////sync call done/////////////////////////
-	req->kmmap_addr = qhgpu_mmap_addr_pass(req->id);
-	h_keys = ( unsigned int * )req->kmmap_addr;
-
-	printk("\n\n");
-	printk("========================\n");
-	for(i = 0; i < 50; i++){
-		printk("%u ,",h_keys[i]);
-	}
-	printk("========================\n");
-	///////////////////////////////////////////////////
-
-
+/*
 	if((counts = (unsigned int *)__get_free_pages(GFP_KERNEL, 10))==NULL)return;
 	if((temp = (unsigned int *)__get_free_pages(GFP_KERNEL, 10))==NULL)return;
 
@@ -251,14 +287,12 @@ static int __init minit(void) {
 		printk("malloc fail !!! \n");
 	}else{
 
+		int num,i=0;
 		printk("malloc success !!! \n");
-
-
 		for(i = 0; i < cpu_size; i++){
 			get_random_bytes(&num, sizeof(i));
 			cpu_keys[i] = (num% _MAXINT);
 		}
-
 
 		do_gettimeofday(&t0);
 		rxSort(cpu_keys, cpu_size, 29, 2);
@@ -278,14 +312,13 @@ static int __init minit(void) {
 		}
 		printk("========================\n");
 		///////////////////////////////////////////////////
-	}
-
+	}*/
 
 	return 0;
 }
 
 static void __exit mexit(void) {
-	printk("test_module exit\n");
+	printk("batch_test_module exit\n");
 }
 
 module_init( minit);

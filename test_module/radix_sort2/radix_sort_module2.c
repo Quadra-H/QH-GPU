@@ -21,12 +21,10 @@
 #include <linux/random.h>
 #include <asm/page.h>
 #include <linux/timex.h>
-
 #include "../../qhgpu/qhgpu.h"
 #include "./lib/cl_radix_sort_param.h"
-
-
 #define BATCH_NR 3
+
 
 static int test_gpu_callback(struct qhgpu_request *req)
 {
@@ -176,27 +174,28 @@ static int __init minit(void) {
 	long tt;
 
 
+	struct qhgpu_request *mmap_req;
 	struct qhgpu_request *req;
 	char *buf;
 
 	//// alloc request
-	req = qhgpu_alloc_request(_N,"radix_service");
-	if (!req) {
-		printk("request null\n");
-		return 0;
-	}
+	char *service_name = "radix_service2";
+
+	req = qhgpu_alloc_request(_N,service_name);
 	req->callback = test_gpu_callback;
 	//////////////////////////////////////////////////////
 	// init mmap_addr
 	//////////////////////////////////////////////////////
 
-
 	unsigned int* h_keys = ( unsigned int * )req->kmmap_addr;
 	unsigned int i=0;
 	unsigned int num;
+
+	printk("\n\n set data");
 	for(i = 0; i < _N; i++){
 		get_random_bytes(&num, sizeof(i));
 		h_keys[i] = (num% _MAXINT);
+
 	}
 
 	printk("\n\nbefore sort");
@@ -219,6 +218,7 @@ static int __init minit(void) {
 
 	printk("SYNC  SIZE: %10lu B, TIME: %10lu MS, OPS: %8lu, BW: %8lu MB/S\n",
 			sz, tt, 1000000/tt, sz/tt);
+
 
 
 

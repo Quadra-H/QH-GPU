@@ -27,6 +27,8 @@ cl_uint numdev;
 cl_device_type device_type;   // type de device pour le calcul (cpu ou gpu)
 cl_command_queue command_que;     // OpenCL command queue
 
+static int service_cnt;
+
 char* mmap_address;
 
 int _safe_syscall(int r, const char *file, int line) {
@@ -392,6 +394,7 @@ static void qc_init_service_request(struct _qhgpu_sritem *item,
 	item->sr.mmap_addr = kureq->mmap_addr;
 	item->sr.kmmap_addr = kureq->kmmap_addr;
 	item->sr.mmap_size = kureq->mmap_size;
+	item->sr.devfd = devfd;
 
 
 	printf("qc_init_service_request lookup service start !!! %s \n",kureq->service_name);
@@ -474,9 +477,15 @@ static int qc_get_next_service_request(void)
 			if( kureq.service_name[0] == '0' && kureq.service_name[1] == '0' && kureq.service_name[2] == '0' )
 				return -123;
 
-			char *num = (char*)kureq.data;
-			printf("kureq.data: %s \n",num);
-			kureq.mmap_addr = mmap_addr_arr[num[0]-'0'];
+			int *num = (int*)kureq.data;
+			printf("kureq.data: %d \n",num[0]);
+			//num = (int*)kureq.in;
+			//printf("kureq.data in: %d \n",num[0]);
+
+			if(num[0]>-1&&num[0]<service_cnt)
+				kureq.mmap_addr = mmap_addr_arr[num[0]];
+
+			printf("kureq.mmap_addr  : %p\n",kureq.mmap_addr);
 			//req_call_count++;
 			qc_init_service_request(sreq, &kureq);
 			return 0;
@@ -632,7 +641,7 @@ int main(int argc, char *argv[])
 	qc_init();
 
 
-	int service_cnt = qc_load_all_services(service_lib_dir,context,devices);
+	service_cnt = qc_load_all_services(service_lib_dir,context,devices);
 
 	printf("service_cnt: %d \n",service_cnt);
 	if(service_cnt == 0) service_cnt = 1;

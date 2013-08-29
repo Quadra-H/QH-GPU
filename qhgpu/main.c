@@ -43,6 +43,7 @@ static struct kmem_cache *qhgpu_sync_call_data_cache;
 
 
 //
+static struct qhgpu_module** module_arr;
 static char** mmap_addr_arr;
 static int module_cnt=0;
 //
@@ -87,6 +88,7 @@ struct _qhgpu_dev {
 
 	struct _qhgpu_vma vm;
 	spinlock_t vm_lock;
+
 
 	int state;
 
@@ -291,6 +293,13 @@ static void fill_ku_request(struct qhgpu_ku_request *kureq, struct qhgpu_request
 		kureq->in = req->in;
 	}
 
+
+	int *nm = (int*)kureq->in;
+	nm[0]=*((int*)req->in);
+	printk("========================== \n");
+	printk("num: %d \n",nm[0]);
+	printk("========================== \n");
+
 	if (ADDR_WITHIN(req->out, qhgpudev.gmpool.kva,
 			qhgpudev.gmpool.npages<<PAGE_SHIFT)) {
 		kureq->out = (void*) ADDR_REBASE(qhgpudev.gmpool.uva,
@@ -476,8 +485,11 @@ static long qhgpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) 
 		printk("qhgpu_ioctl QHGPU_IOC_SET_MMAP.  %ld\n",arg);
 
 
+		////// multi module setting
 		qhgpudev.kmmap_addr_arr=(char**)vmalloc(sizeof(char*)*arg);
 		mmap_addr_arr = (char**)vmalloc(sizeof(char*)*arg);
+		module_arr=(char**)vmalloc(sizeof(struct qhgpu_module*)*arg);
+
 		int i=0;
 		for(i=0;i<arg;i++){
 
@@ -488,38 +500,22 @@ static long qhgpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) 
 			}
 			printk("[qhpgpu module]mmap_addr_arr alloc. [%p]\n", mmap_addr_arr[i]);
 		}
+		////////////////////////////////////
 
 
-		/*// multi mmap test
-		mmap_addr_arr[0] = (char *)__get_free_pages(GFP_KERNEL, 10);
-		if( mmap_addr_arr[0] == NULL ) {
-			printk("qhgpu_mmap alloc free pages error0\n");
-			return -1;
-		}
-		mmap_addr_arr[1] = (char *)__get_free_pages(GFP_KERNEL, 10);
-		if( mmap_addr_arr[1] == NULL ) {
-			printk("qhgpu_mmap alloc free pages error1\n");
-			return -1;
-		}
-		mmap_addr_arr[2] = (char *)__get_free_pages(GFP_KERNEL, 10);
-		if( mmap_addr_arr[2] == NULL ) {
-			printk("qhgpu_mmap alloc free pages error2\n");
-			return -1;
-		}
-		mmap_addr_arr[3] = (char *)__get_free_pages(GFP_KERNEL, 10);
-		if( mmap_addr_arr[3] == NULL ) {
-			printk("qhgpu_mmap alloc free pages error3\n");
-			return -1;
-		}
-		//
-		printk("[qhpgpu module]mmap_addr_arr alloc. [%p][%p][%p][%p]\n", mmap_addr_arr[0], mmap_addr_arr[1], mmap_addr_arr[2], mmap_addr_arr[3]);
-*/
-
-
-
-		//err = dump_gpu_bufs((char*)arg);
 		break;
 
+	case QHGPU_IOC_BATCH_H2D:
+		printk("qhgpu_ioctl QHGPU_IOC_BATCH_H2D.  %ld\n",arg);
+		module_arr[arg]->batch_data_loader();
+
+		break;
+	case QHGPU_IOC_BATCH_D2H:
+		printk("qhgpu_ioctl QHGPU_IOC_BATCH_D2H.  %ld\n",arg);
+		module_arr[arg]->batch_data_result();
+
+
+		break;
 	case QHGPU_IOC_SET_STOP:
 		printk("qhgpu_ioctl QHGPU_IOC_SET_STOP. \n");
 		//err = terminate_all_requests();
@@ -781,9 +777,33 @@ void qhgpu_free_request(struct qhgpu_request* req) {
 }
 EXPORT_SYMBOL_GPL( qhgpu_free_request);
 
-struct qhgpu_request* qhgpu_alloc_request(void) {
+struct qhgpu_request* qhgpu_alloc_request(int data_size, char *service_name) {
 	struct qhgpu_request *req = kmem_cache_alloc(qhgpu_request_cache,
 			GFP_KERNEL);
+
+	strcpy(req->service_name, service_name);
+	req->id = qhgpu_mmap_id();
+
+	int *id_buf = (int*)qhgpu_vmalloc(sizeof( int ));
+	printk("req->id %d , %c \n", req->id, id_buf[0]);
+	req->udata = id_buf;
+
+	int *batch_cnt = (int*)qhgpu_vmalloc(sizeof( int ));				////batch count
+	batch_cnt[0]=(data_size%_MAX_BATCH_SIZE==0) ? data_size/_MAX_BATCH_SIZE:(data_size/_MAX_BATCH_SIZE)+1;
+	req->in = batch_cnt;
+
+	/*int *batch_out_cnt = (int*)qhgpu_vmalloc(sizeof( int ));				////batch count
+	batch_out_cnt[0]=(data_size%_MAX_BATCH_SIZE==0) ? data_size/_MAX_BATCH_SIZE:(data_size/_MAX_BATCH_SIZE)+1;
+	req->out = batch_out_cnt;
+	*/
+
+	printk("in,out ,batch_cnt: %d \n", ((int*)(req->in))[0]);
+
+
+
+	req->kmmap_addr = qhgpu_mmap_addr_pass(req->id);
+	req->mmap_size = data_size;
+
 	return req;
 }
 EXPORT_SYMBOL_GPL( qhgpu_alloc_request);
@@ -837,6 +857,7 @@ int qhgpu_call_sync(struct qhgpu_request *req) {
 
 	req->kdata = data;
 	req->callback = sync_callback;
+	module_arr[req->id] = req->module;
 
 
 

@@ -168,7 +168,7 @@ static int __init minit(void) {
 	printk("done sync\n");
 	*/
 
-
+/*
 
 	struct completion cs[BATCH_NR];
 
@@ -224,7 +224,7 @@ static int __init minit(void) {
 	memcpy(req->in, b, (ARRAY_SIZE-5) * ( sizeof( float ) ));			/// for test
 
 	qhgpu_call_sync(req);
-	/**/
+
 
 	if(req->out!=NULL){
 		int* out_arr = (int*)req->out;
@@ -234,7 +234,7 @@ static int __init minit(void) {
 			sprintf (buffer, "test_out 21 : %d ~~~~~ \n", out_arr[i]);
 			printk("%s",buffer);
 		}
-	}
+	}*/
 	return 0;
 }
 

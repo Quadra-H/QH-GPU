@@ -28,6 +28,10 @@ struct qhgpu_gpu_mem_info {
     unsigned long size;
 };
 
+
+
+
+#define _MAX_BATCH_SIZE (1<<20)
 #define QHGPU_SERVICE_NAME_SIZE 32
 
 
@@ -58,7 +62,7 @@ struct qhgpu_ku_response {
 
 /* the NR will not be used */
 #define QHGPU_BUF_NR 1
-#define QHGPU_BUF_SIZE (1024*100)
+#define QHGPU_BUF_SIZE (1024*200)
 
 
 #define QHGPU_DEV_NAME "qhgpu"
@@ -72,10 +76,14 @@ struct qhgpu_ku_response {
     _IOW(QHGPU_IOC_MAGIC, 1, struct qhgpu_gpu_mem_info[QHGPU_BUF_NR])
 #define QHGPU_IOC_SET_MMAP \
     _IOR(QHGPU_IOC_MAGIC, 2, struct qhgpu_gpu_mem_info[QHGPU_BUF_NR])
-#define QHGPU_IOC_SET_STOP     _IO(QHGPU_IOC_MAGIC, 3)
-#define QHGPU_IOC_GET_REQS     _IOR(QHGPU_IOC_MAGIC, 4,
+#define QHGPU_IOC_BATCH_H2D \
+    _IOR(QHGPU_IOC_MAGIC, 3, struct qhgpu_gpu_mem_info[QHGPU_BUF_NR])
+#define QHGPU_IOC_BATCH_D2H \
+    _IOR(QHGPU_IOC_MAGIC, 4, struct qhgpu_gpu_mem_info[QHGPU_BUF_NR])
+#define QHGPU_IOC_SET_STOP     _IO(QHGPU_IOC_MAGIC, 5)
+#define QHGPU_IOC_GET_REQS     _IOR(QHGPU_IOC_MAGIC, 6,
 
-#define QHGPU_IOC_MAXNR 4
+#define QHGPU_IOC_MAXNR 6
 
 #include "qhgpu_log.h"
 
@@ -103,6 +111,7 @@ struct qhgpu_service_request {
     int state;
     int stream_id;
     unsigned long stream;
+    int devfd;
 };
 
 /* service request states: */
@@ -112,6 +121,10 @@ struct qhgpu_service_request {
 #define QHGPU_REQ_RUNNING 4
 #define QHGPU_REQ_POST_EXEC 5
 #define QHGPU_REQ_DONE 6
+
+
+#define QHGPU_BATCH 7
+
 
 
 
@@ -135,11 +148,17 @@ extern void qhgpu_vfree(void *p);
 extern void* qhgpu_vmalloc(unsigned long nbytes);
 extern int qhgpu_call_sync(struct qhgpu_request *req);
 extern int qhgpu_call_async(struct qhgpu_request *req);
-extern struct qhgpu_request* qhgpu_alloc_request(void);
+extern struct qhgpu_request* qhgpu_alloc_request(int data_size, char *service_name);
 extern void qhgpu_free_request(struct qhgpu_request* req);
 extern int qhgpu_next_request_id(void);
 
 typedef int (*qhgpu_callback)(struct qhgpu_request *req);
+
+
+struct qhgpu_module {
+    void (*batch_data_loader)();
+    void (*batch_data_result)();
+};
 
 struct qhgpu_request {
 	int id;
@@ -149,6 +168,7 @@ struct qhgpu_request {
 	char service_name[QHGPU_SERVICE_NAME_SIZE];
 	qhgpu_callback callback;
 	int errcode;
+	struct qhgpu_module *module;
 };
 /*
 extern int kgpu_call_sync(struct kgpu_request*);
