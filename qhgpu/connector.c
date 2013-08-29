@@ -81,23 +81,10 @@ static int init_mmap(int cnt) {
 	gettimeofday(&start_time, NULL);
 #endif
 
-	mmap_addr_arr = (char**) malloc(sizeof(char*) * cnt);
-	for (i = 0; i < cnt; i++) {
 
-		mmap_addr_arr[i] = mmap(NULL, 0x400000, PROT_READ | PROT_WRITE,
-				MAP_SHARED, devfd, 0);
-		if (mmap_addr_arr[i] == NULL) {
-			printf("qhgpu_mmap alloc free pages error %d\n", i);
-
-#ifdef QC_LOG
-	gettimeofday(&end_time, NULL);
-	timersub(&end_time, &start_time, &diff_time);
-	timeradd(&total_time, &diff_time, &total_time);
-	printf("[qhgpu connector]%32s | call count %4u | runtime %8lu usec | totaltime %8lu usec\n", func_name, call_count, diff_time.tv_sec * 1000 + diff_time.tv_usec, total_time.tv_sec * 1000 + total_time.tv_usec);
-#endif
 
 	mmap_addr_arr = (char**)malloc(sizeof(char*)*cnt);
-	int i=0;
+
 	for(i=0;i<cnt;i++){
 
 		mmap_addr_arr[i] =  mmap(NULL, 0x400000, PROT_READ | PROT_WRITE, MAP_SHARED, devfd, 0);
@@ -406,7 +393,7 @@ int qc_init(void) {
 	return 0;
 }
 
-static int qc_finit(void) {
+int qc_finit() {
 
 #ifdef QC_LOG
 	struct timeval start_time, end_time, diff_time;
@@ -438,7 +425,7 @@ static int qc_finit(void) {
 	return 0;
 }
 
-static struct _qhgpu_sritem *qc_alloc_service_request() {
+struct _qhgpu_sritem *qc_alloc_service_request() {
 	struct _qhgpu_sritem *s = (struct _qhgpu_sritem *) malloc(sizeof(struct _qhgpu_sritem));
 
 #ifdef QC_LOG
@@ -467,7 +454,7 @@ static struct _qhgpu_sritem *qc_alloc_service_request() {
 	return s;
 }
 
-static void qc_free_service_request(struct _qhgpu_sritem *s) {
+void qc_free_service_request(struct _qhgpu_sritem *s) {
 
 #ifdef QC_LOG
 	struct timeval start_time, end_time, diff_time;
@@ -490,7 +477,7 @@ static void qc_free_service_request(struct _qhgpu_sritem *s) {
 
 }
 
-static void qc_fail_request(struct _qhgpu_sritem *sreq, int serr) {
+void qc_fail_request(struct _qhgpu_sritem *sreq, int serr) {
 
 #ifdef QC_LOG
 	struct timeval start_time, end_time, diff_time;
@@ -516,7 +503,7 @@ static void qc_fail_request(struct _qhgpu_sritem *sreq, int serr) {
 
 }
 
-static void qc_init_service_request(struct _qhgpu_sritem *item, struct qhgpu_ku_request *kureq) {
+void qc_init_service_request(struct _qhgpu_sritem *item, struct qhgpu_ku_request *kureq) {
 	struct _qhgpu_sitem *temp;
 
 #ifdef QC_LOG
@@ -584,7 +571,7 @@ static void qc_init_service_request(struct _qhgpu_sritem *item, struct qhgpu_ku_
 
 //static int req_call_count = 0;
 
-static int qc_get_next_service_request(void) {
+int qc_get_next_service_request(void) {
 	int err;
 	struct pollfd pfd;
 
@@ -686,8 +673,10 @@ static int qc_get_next_service_request(void) {
 			//num = (int*)kureq.in;
 			//printf("kureq.data in: %d \n",num[0]);
 
-			if(num[0]>-1&&num[0]<service_cnt)
-				kureq.mmap_addr = mmap_addr_arr[num[0]];
+			printf("kureq.mmap_addr  : %p, %d\n",mmap_addr_arr[0], service_cnt);
+			//if(num[0]>-1&&num[0]<service_cnt)
+			int idx = num[0];
+			kureq.mmap_addr = mmap_addr_arr[idx];
 
 			printf("kureq.mmap_addr  : %p\n",kureq.mmap_addr);
 			//req_call_count++;
@@ -747,7 +736,7 @@ static int qc_get_next_service_request(void) {
 	return 0;
 }
 
-static int qc_launch_exec(struct _qhgpu_sritem *sreq) {
+int qc_launch_exec(struct _qhgpu_sritem *sreq) {
 	cl_int status;
 
 #ifdef QC_LOG
@@ -760,12 +749,6 @@ static int qc_launch_exec(struct _qhgpu_sritem *sreq) {
 	gettimeofday(&start_time, NULL);
 #endif
 
-
-	//printf("qc_launch_exec !!!\n");
-
-	command_que = clCreateCommandQueue(context, devices[numdev],
-			CL_QUEUE_PROFILING_ENABLE, &status);
-	assert(status == CL_SUCCESS);
 
 
 	//// GPU computation
@@ -789,7 +772,7 @@ static int qc_launch_exec(struct _qhgpu_sritem *sreq) {
 	return 0;
 }
 
-static int qc_post_exec(struct _qhgpu_sritem *sreq) {
+int qc_post_exec(struct _qhgpu_sritem *sreq) {
 	int r = 1;
 
 #ifdef QC_LOG
@@ -823,7 +806,7 @@ static int qc_post_exec(struct _qhgpu_sritem *sreq) {
 ////////////////////////////////////////////////////////////////////////////////////
 // response
 ///////////////////////////////////////////////////PAGE_SIZE/////////////////////////////////
-static int qc_send_response(struct qhgpu_ku_response *resp) {
+int qc_send_response(struct qhgpu_ku_response *resp) {
 	//printf("qc_send_response: %d \n", resp->id);
 
 #ifdef QC_LOG
@@ -849,7 +832,7 @@ static int qc_send_response(struct qhgpu_ku_response *resp) {
 	return 0;
 }
 
-static int qc_service_done(struct _qhgpu_sritem *sreq) {
+int qc_service_done(struct _qhgpu_sritem *sreq) {
 	struct qhgpu_ku_response resp;
 
 #ifdef QC_LOG
@@ -887,7 +870,7 @@ static int qc_service_done(struct _qhgpu_sritem *sreq) {
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 
-static int __qc_process_request(int (*op)(struct _qhgpu_sritem *),
+int __qc_process_request(int (*op)(struct _qhgpu_sritem *),
 	struct list_head *lst, int once) {
 	struct list_head *pos, *n;
 	int r = 0;
@@ -918,7 +901,7 @@ static int __qc_process_request(int (*op)(struct _qhgpu_sritem *),
 	return r;
 }
 
-static int qc_main_loop() {
+int qc_main_loop() {
 
 #ifdef QC_LOG
 	struct timeval start_time, end_time, diff_time;

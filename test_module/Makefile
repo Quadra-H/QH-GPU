@@ -1,6 +1,6 @@
 obj-m += test_module.o
 
-SUBDIRS = radix_sort radix_sort2 batch_test_module exit_module bfs
+SUBDIRS = radix_sort radix_sort2 batch_test_module
 
 all:  $(SUBDIRS)
 .PHONY: $(SUBDIRS)
