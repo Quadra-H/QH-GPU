@@ -445,27 +445,34 @@ static int qc_get_next_service_request(void)
 	//printf("qc_get_next_service_request err: %d \n",err);
 
 	if (err == 0 || (err && !(pfd.revents & POLLIN)) ) {
+		//printf("-1-1-1 111\n");
 		return -1;
 	}
 	else if (err == 1 && pfd.revents & POLLIN)
 	{
 		//	_qhgpu_sritem allocation
 		sreq = qc_alloc_service_request();
-		if (!sreq)
+		if (!sreq) {
+			//printf("-1-1-1 222\n");
 			return -1;
+		}
 
 		//// get request --> kureq
 		err = read(devfd, (char*)(&kureq), sizeof(struct qhgpu_ku_request));
 
 		if (err <= 0) {
 			if (errno == EAGAIN || err == 0) {
+				//printf("-1-1-1 222\n");
 
 				return -1;
 			} else {
+				//printf("abort 111\n");
 				perror("Read request.");
 				abort();
 			}
 		} else {
+			if( kureq.service_name[0] == '0' && kureq.service_name[1] == '0' && kureq.service_name[2] == '0' )
+				return -123;
 
 			char *num = (char*)kureq.data;
 			printf("kureq.data: %s \n",num);
@@ -476,14 +483,23 @@ static int qc_get_next_service_request(void)
 		}
 	} else {
 		if (err < 0) {
+			//printf("abort 222\n");
 			perror("Poll request");
 			abort();
 		} else {
+			//printf("abort 333\n");
 			fprintf(stderr, "Poll returns multiple fd's results\n");
 			abort();
 		}
     }
-	printf("qc_get_next_service_request finish!!");
+
+	//finsh request incomming
+	//if(1) {
+	//	return 1;
+	//}
+
+	//printf("000 111\n");
+	return 0;
 }
 
 
@@ -601,7 +617,9 @@ static int qc_main_loop()
 		__qc_process_request(qc_post_exec, &running_reqs, 1);
 		__qc_process_request(qc_launch_exec, &init_reqs, 0);
 
-		qc_get_next_service_request();
+		//qc_get_next_service_request();
+		if( qc_get_next_service_request() == -123 )
+			break;
     }
 	return 0;
 }
