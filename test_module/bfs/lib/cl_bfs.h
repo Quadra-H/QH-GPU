@@ -27,7 +27,7 @@ struct oclHandlesStruct
 
 struct oclHandlesStruct oclHandles;
 
-void _clInit();
+void _clInit(cl_context ctx,cl_device_id* devices);
 void _clRelease();
 cl_mem _clCreateAndCpyMem(int size, void * h_mem_source);
 cl_mem _clMallocRW(int size, void * h_mem_ptr);

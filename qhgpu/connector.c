@@ -24,7 +24,7 @@ cl_uint nb_platforms;
 cl_uint nb_devices;   // number of devices of the gpu
 cl_uint numdev;
 cl_device_type device_type;   // type de device pour le calcul (cpu ou gpu)
-cl_command_queue command_que;     // OpenCL command queue
+
 
 static int service_cnt;
 
@@ -765,17 +765,8 @@ static int qc_launch_exec(struct _qhgpu_sritem *sreq) {
 
 	command_que = clCreateCommandQueue(context, devices[numdev],
 			CL_QUEUE_PROFILING_ENABLE, &status);
-
-#ifdef QC_LOG
-	if ( status == CL_SUCCESS ){
-		gettimeofday(&end_time, NULL);
-		timersub(&end_time, &start_time, &diff_time);
-		timeradd(&total_time, &diff_time, &total_time);
-		printf("[qhgpu connector]%32s | call count %4u | runtime %8lu usec | totaltime %8lu usec\n", func_name, call_count, diff_time.tv_sec * 1000 + diff_time.tv_usec, total_time.tv_sec * 1000 + total_time.tv_usec);
-	}
-#endif
-
 	assert(status == CL_SUCCESS);
+
 
 	//// GPU computation
 	int r = sreq->sr.s->launch(&sreq->sr);

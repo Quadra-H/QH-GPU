@@ -12,12 +12,12 @@ int device_id_inused = 0;
 cl_int resultCL = CL_SUCCESS;
 
 
-void _clInit()
+void _clInit(cl_context ctx,cl_device_id* devices)
 {
 	int DEVICE_ID_INUSED = 0;
 
-	oclHandles.context = NULL;
-	oclHandles.devices = NULL;
+	oclHandles.context = ctx;
+	oclHandles.devices = devices;
 	oclHandles.queue = NULL;
 	oclHandles.program = NULL;
 
@@ -26,67 +26,6 @@ void _clInit()
 	cl_uint numPlatforms;
 	cl_platform_id targetPlatform = NULL;
 
-	resultCL = clGetPlatformIDs(0, NULL, &numPlatforms);
-	if(resultCL != CL_SUCCESS){
-		printf("ERROR : Getting number of platforms\n\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if(!(numPlatforms > 0)){
-		printf("ERROR : No platforms found\n\n");
-		exit(EXIT_FAILURE);
-	}
-
-	cl_platform_id * allPlatforms = (cl_platform_id*)malloc(numPlatforms * sizeof(cl_platform_id));
-	resultCL = clGetPlatformIDs(numPlatforms, allPlatforms, NULL);
-	if(!(numPlatforms > 0)){
-		printf("ERROR : No platforms found\n\n");
-		exit(EXIT_FAILURE);
-	}
-
-	targetPlatform = allPlatforms[0];
-	int i;
-	for(i = 0; i < numPlatforms; i++)
-	{
-		char pbuff[128];
-		resultCL = clGetPlatformInfo(allPlatforms[i], CL_PLATFORM_VENDOR,sizeof(pbuff),pbuff, NULL);
-
-		if(resultCL != CL_SUCCESS){
-			printf("ERROR : Getting platform info\n\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-	free(allPlatforms);
-
-	cl_context_properties cprops[3] = {CL_CONTEXT_PLATFORM, (cl_context_properties)targetPlatform, 0};
-	oclHandles.context = clCreateContextFromType(cprops, CL_DEVICE_TYPE_GPU, NULL, NULL, &resultCL);
-
-	if((resultCL != CL_SUCCESS) || (oclHandles.context == NULL)){
-		printf("ERROR : Creating context\n\n");
-		exit(EXIT_FAILURE);
-	}
-
-	oclHandles.cl_status = clGetDeviceIDs(targetPlatform, CL_DEVICE_TYPE_GPU, 0, NULL, &deviceListSize);
-
-	if(oclHandles.cl_status!=CL_SUCCESS){
-		printf("exception in _clInit -> clGetDeviceIDs\n");
-	}
-	if (deviceListSize == 0)
-		printf("InitCL()::Error: No devices found.\n");
-
-	oclHandles.devices = (cl_device_id *)malloc(deviceListSize);
-
-	if (oclHandles.devices == 0)
-		printf("InitCL()::Error: Could not allocate memory.");
-
-
-   oclHandles.cl_status = clGetDeviceIDs(targetPlatform, CL_DEVICE_TYPE_GPU, deviceListSize, \
-								oclHandles.devices, NULL);
-   if(oclHandles.cl_status!=CL_SUCCESS){
-	   printf("exception in _clInit -> clGetDeviceIDs-2\n");
-   }
-   //-----------------------------------------------
-   //--cambine-4: Create an OpenCL command queue
 
 
 	oclHandles.queue = clCreateCommandQueue(oclHandles.context,

@@ -1,6 +1,3 @@
-
-const char *input_f = "/home/lee/workspace/opencl_bfs/Debug/graph1MW_6.txt";
-
 /* This work is licensed under the terms of the GNU GPL, version 2.  See
  * the GPL-COPYING file in the top-level directory.
  *
@@ -16,6 +13,11 @@ const char *input_f = "/home/lee/workspace/opencl_bfs/Debug/graph1MW_6.txt";
 #include "../../../qhgpu/qhgpu.h"
 #include "../../../qhgpu/connector.h"
 #include "cl_bfs.h"
+
+////////////////////////////////////////////////////////////////
+const char *input_f = "../data/graph1MW_6.txt";
+////////////////////////////////////////////////////////////////
+
 
 typedef enum { false, true} bool;
 typedef enum { PAGEABLE, PINNED, NON } memoryMode;
@@ -118,7 +120,7 @@ void run_bfs_gpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size
 	cl_mem d_graph_nodes, d_graph_edges, d_graph_mask, d_updating_graph_mask, \
 		d_graph_visited, d_cost, d_over;
 	//--1 transfer data from host to device
-	_clInit();
+
 
 	double time = 0;
 	double t1 = gettime();
@@ -333,15 +335,24 @@ int bfs_prepare()
 
 static struct qhgpu_service bfs;
 
-int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*))
+int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*),
+		cl_context ctx,
+		cl_device_id* dv)
 {
 	printf("[libsrv_bfs] Info: init bfs service !!!!\n");
+
+
+
+	context= ctx;
+	dev  = dv;
 
 	/////////////////////////////////////////////
 	//bfs init
 	/////////////////////////////////////////////
-	bfs_prepare();
+	_clInit(context,dev);
 	/////////////////////////////////////////////
+
+
 
 	sprintf(bfs.name, "libsrv_bfs");
 	bfs.sid = 1;

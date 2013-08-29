@@ -120,37 +120,31 @@ static int __init minit(void) {
 
 
 	//// alloc request
-	req = qhgpu_alloc_request();
+	req = qhgpu_alloc_request( MAT_SIZE*MAT_SIZE,"floyd_warshall_service");
 	if (!req) {
 		printk("request null\n");
 		return 0;
 	}
 
-
-	strcpy(req->service_name, "floyd_warshall_service");
 	req->callback = floyd_warshall_module_callback;
-	// init mmap_addr
-	req->kmmap_addr = qhgpu_mmap_addr_pass();	// init mmap_addr
-	req->mmap_size = MAT_SIZE*MAT_SIZE;
 
+	// init mmap_addr
 	adj_mat_gpu = req->kmmap_addr;
 
 	//4096 * 2^16 == 2^2 * 2^10 * 2^16 == 2^26 * 2^2 == 0x1000*0x1000*2*sizeof(int)
 	adj_mat_cpu = (int*)__get_free_pages(GFP_KERNEL, 16);
-
-
 	kgenerate_adjacency_matrix(adj_mat_gpu, MAT_SIZE, 50);
-	memcpy(adj_mat_cpu, adj_mat_gpu, MAT_SIZE*MAT_SIZE*sizeof(int));
 
+
+	memcpy(adj_mat_cpu, adj_mat_gpu, MAT_SIZE*MAT_SIZE*sizeof(int));
 	kprint_adjacency_matrix(adj_mat_gpu, 0x8);
+
 
 	do_gettimeofday(&t0);
 	//sync call
 	qhgpu_call_sync(req);
-
 	tt = 1000000*(t1.tv_sec-t0.tv_sec) +
 			((long)(t1.tv_usec) - (long)(t0.tv_usec));
-
 	printk("TIME: %10lu MS, OPS: %8lu\n", tt, 1000000/tt);
 
 
