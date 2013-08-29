@@ -1,3 +1,4 @@
+
 /* This work is licensed under the terms of the GNU GPL, version 2.  See
  * the GPL-COPYING file in the top-level directory.
  *
@@ -8,10 +9,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "../../../qhgpu/qhgpu.h"
 #include "../../../qhgpu/connector.h"
 #include "cl_floyd_warshall.h"
-
 
 #ifdef __APPLE__
 #include <OpenCL/cl.h>
@@ -19,121 +20,92 @@
 #include <CL/cl.h>
 #endif
 
-/////////////////////////////////////////////////////////////////////////
+
+struct floyd_warshall_data {
+	cl_context context;
+	cl_device_id device_id;
+	cl_command_queue command_queue;
+	cl_program program;
+	cl_kernel kernel;
+	cl_mem mem_obj;
+};
+
+struct floyd_warshall_data fw_data;
+
 // Default Process
-/////////////////////////////////////////////////////////////////////////
-
-int radix_cs(struct qhgpu_service_request *sr)
-{
-	printf("[libsrv_default] Info: default_cs\n");
+int floyd_warshall_cs(struct qhgpu_service_request *sr) {
+	printf("[libsrv_default] Info: mmap_ioctl_cs\n");
 	return 0;
 }
 
 
-// launch and copy result to sr->dout
-int radix_launch(struct qhgpu_service_request *sr)
+int floyd_warshall_launch(struct qhgpu_service_request *sr)
 {
+	cl_int res;
+	int* mmap_data;
+	unsigned int mmap_size;
 
-	int i=0;
+	double data_size;
+	unsigned int mat_size;
 
+	printf("[libsrv_mmap_ioctl]mmap_ioctl launch\n");
 
-	printf("[libsrv_radix] Info: radix_launch !!!3\n");
-	printf("mmap test!!!:  %p \n", sr->mmap_addr);
+	mmap_data = sr->mmap_addr;
+	mmap_size = sr->mmap_size;
+	printf("[libsrv_mmap_ioctl] mmap_addr[%p], mmap_size[%x]\n", mmap_data, mmap_size);
 
-	unsigned int* mmap_data =sr->mmap_addr;//qhgpudev.mmap_private_data;
-	printf("radix_launch mmap_data size : %d %d \n", sizeof(sr->mmap_addr),sr->mmap_size);
+	data_size = mmap_size;
+	mat_size = sqrt(data_size);
 
-	h_keys = sr->mmap_addr;
+	res = run_floyd_warshall_gpu(&(fw_data.context), &(fw_data.command_queue), &(fw_data.kernel), &(fw_data.mem_obj), mmap_data, mat_size);
+	if( res != CL_SUCCESS ) {
+		printf("init_openCL error.\n");
+		return 1;
+	}
 
-
-
-	printf("\n\n init radix =====\n");
-//	for(i=sr->mmap_size-60;i<sr->mmap_size-10;i++){
-//			printf("%u ,", h_keys[i]);
-//	}
-
-
-	init_cl_radix_sort(Context,Devices[numdev],CommandQueue,sr->mmap_size);
-
-	printf("Radix= %d \n",_RADIX);
-	printf("Max Int= %d \n",(uint) _MAXINT);
-	cl_radix_sort();
-
-	printf("\n\n recup =====\n");
-
-
-//	for(i=sr->mmap_size-60;i<sr->mmap_size-10;i++){
-//		printf("%u ,", h_keys[i]);
-//	}
-
-
-	////////////////////////////////////////////////////////////////////////
-	//read result
-	////////////////////////////////////////////////////////////////////////
-	cl_radix_recup_gpu();
-	////////////////////////////////////////////////////////////////////////
-
-
-
-	printf("\n\n");
-
-	//for(i=sr->mmap_size-60;i<sr->mmap_size-10;i++){
-//	for(i=0;i<50;i++){
-//		printf("%u ,", h_keys[i]);
-//	}
-
-	printf("%f s in the histograms\n",histo_time);
-	printf("%f s in the scanning\n",scan_time);
-	printf("%f s in the reordering\n",reorder_time);
-	printf("%f s in the transposition\n",transpose_time);
-	printf("%f s total GPU time (without memory transfers)\n",sort_time);
+	clFinish(fw_data.command_queue);
+	clReleaseMemObject(fw_data.mem_obj);
 
 	return 0;
 }
 
-int radix_post(struct qhgpu_service_request *sr)
+int floyd_warshall_post(struct qhgpu_service_request *sr)
 {
-	printf("[libsrv_radix] Info: radix_post\n");
+	printf("[libsrv_mmap_ioctl] Info: mmap_ioctl_post\n");
 	return 0;
 }
 
+static struct qhgpu_service floyd_warshall_srv;
 
-int radix_prepare(){
+int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*), cl_context context, cl_device_id* device_id) {
+	cl_int ret;
 
+	printf("[libsrv_floyd_warshall] Info: init libsrv floyd warshall.\n");
 
+	fw_data.context = context;
+	fw_data.device_id = device_id;
 
+	ret = init_floyd_warshall_gpu(device_id, &context, &(fw_data.command_queue), &(fw_data.program), &(fw_data.kernel));
+	if( ret != CL_SUCCESS) {
+		printf("init_floyd_warshall_gpu error.\n");
+		return 1;
+	}
+
+	sprintf(floyd_warshall_srv.name, "floyd_warshall_service");
+	floyd_warshall_srv.compute_size = floyd_warshall_cs;
+	floyd_warshall_srv.launch = floyd_warshall_launch;
+	floyd_warshall_srv.post = floyd_warshall_post;
+
+	return reg_srv(&floyd_warshall_srv, lh);
 }
 
-/////////////////////////////////////////////////////////////////////////
+int finit_service(void *lh, int (*unreg_srv)(const char*)) {
+	printf("[libsrv_floyd_warshall] Info: finit libsrv floyd warshall.\n");
 
+	clFinish(fw_data.command_queue);
+	clReleaseKernel(fw_data.kernel);
+	clReleaseProgram(fw_data.program);
+	clReleaseCommandQueue(fw_data.command_queue);
 
-static struct qhgpu_service radix_srv;
-
-
-int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*))
-{
-	printf("[libsrv_radix] Info: init radix service !!!!\n");
-
-	/////////////////////////////////////////////
-	//radix sort init
-	/////////////////////////////////////////////
-	radix_prepare();
-	/////////////////////////////////////////////
-
-
-	sprintf(radix_srv.name, "radix_service");
-	radix_srv.sid = 1;
-	radix_srv.compute_size = radix_cs;
-	radix_srv.launch = radix_launch;
-	radix_srv.post = radix_post;
-
-
-	return reg_srv(&radix_srv, lh);
-}
-
-
-int finit_service(void *lh, int (*unreg_srv)(const char*))
-{
-	printf("[libsrv_default] Info: finit test service\n");
-	return unreg_srv(radix_srv.name);
+	return unreg_srv(floyd_warshall_srv.name);
 }

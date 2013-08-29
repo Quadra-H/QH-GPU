@@ -25,8 +25,8 @@
 #include "../../qhgpu/qhgpu.h"
 
 
-//#define INT_MAX 9999999
-#define INT_MAX 2147483647;
+#define __INT_MAX 9999999
+//#define __INT_MAX 2147483647;
 
 
 /********************************
@@ -36,7 +36,19 @@
 void kgenerate_adjacency_matrix(unsigned int* mat, const unsigned int mat_size, unsigned int rate) {
 	unsigned int i, j, temp;
 
-	//generate srand
+	for(i = 0 ; i < mat_size ; i++ ) {
+		mat[i*mat_size + i] = 0;
+		for(j = i+1 ; j < mat_size ; j++ ) {
+			get_random_bytes(&temp, sizeof(unsigned int));
+			temp = temp % 10000 + 1;
+			if( temp > rate * 100 ) {
+				temp = __INT_MAX;
+			}
+			mat[j*mat_size + i] = mat[i*mat_size + j] = temp;
+		}
+	}
+
+	/*//generate srand
 	srand((unsigned)time(NULL)+(unsigned)getpid());
 
 	for(i = 0 ; i < mat_size ; i++ ) {
@@ -44,11 +56,11 @@ void kgenerate_adjacency_matrix(unsigned int* mat, const unsigned int mat_size, 
 		for(j = i+1 ; j < mat_size ; j++ ) {
 			temp = rand() % 100 + 1;
 			if( temp > rate ) {
-				temp = INT_MAX;
+				temp = __INT_MAX;
 			}
 			mat[j*mat_size + i] = mat[i*mat_size + j] = temp;
 		}
-	}
+	}*/
 }
 
 
@@ -58,8 +70,8 @@ void kgenerate_adjacency_matrix(unsigned int* mat, const unsigned int mat_size, 
 void kprint_adjacency_matrix(unsigned int* adj_mat, const unsigned int MAT_SIZE) {
 	int i, j;
 
-	for(i = 0 ; i < MAT_SIZE ; i++ ) {
-		for(j = 0 ; j < MAT_SIZE ; j++ ) {
+	for(i = 0 ; i < 8 ; i++ ) {
+		for(j = 0 ; j < 8 ; j++ ) {
 			printk("%8u", adj_mat[i*MAT_SIZE + j]);
 		}
 		printk("\n");
@@ -89,13 +101,9 @@ int kfloyd_warshall_cpu(unsigned int* adj_mat, const unsigned int MAT_SIZE) {
 
 
 static int floyd_warshall_module_callback(struct qhgpu_request *req) {
-	int* adj_mat_gpu;
-
 	printk("[floyd warshall kernel module]callback start.\n");
 
 	//req->out have return data
-	adj_mat_gpu = req->out;
-	kprint_adjacency_matrix(adj_mat_gpu, 0x8);
 
 	struct completion *c = (struct completion*)req->kdata;
 	complete(c);
@@ -105,13 +113,12 @@ static int floyd_warshall_module_callback(struct qhgpu_request *req) {
 
 
 static int __init minit(void) {
-	const unsigned int MAT_SIZE = 0x1000;
+	const unsigned int MAT_SIZE = 0x400;
 
 	int* adj_mat_cpu;
 	int* adj_mat_gpu;
 
 	struct qhgpu_request *req;
-	char *buf;
 
 	struct timeval t0, t1;
 	long tt;
@@ -119,8 +126,9 @@ static int __init minit(void) {
 	printk("[floyd warshall kernel module]minit\n");
 
 
-	//// alloc request
-	req = qhgpu_alloc_request( MAT_SIZE*MAT_SIZE,"floyd_warshall_service");
+	// alloc request
+	//qhgpu_alloc_request( num_of_int , serv_name )  num_of_int == data_size / sizeof(int)
+	req = qhgpu_alloc_request( MAT_SIZE*MAT_SIZE, "floyd_warshall_service");
 	if (!req) {
 		printk("request null\n");
 		return 0;
@@ -129,33 +137,40 @@ static int __init minit(void) {
 	req->callback = floyd_warshall_module_callback;
 
 	// init mmap_addr
-	adj_mat_gpu = req->kmmap_addr;
+	adj_mat_gpu = (int*)req->kmmap_addr;
 
 	//4096 * 2^16 == 2^2 * 2^10 * 2^16 == 2^26 * 2^2 == 0x1000*0x1000*2*sizeof(int)
-	adj_mat_cpu = (int*)__get_free_pages(GFP_KERNEL, 16);
-	kgenerate_adjacency_matrix(adj_mat_gpu, MAT_SIZE, 50);
+	adj_mat_cpu = (int*)__get_free_pages(GFP_KERNEL, 10);
+	kgenerate_adjacency_matrix(adj_mat_cpu, MAT_SIZE, 50);
 
 
-	memcpy(adj_mat_cpu, adj_mat_gpu, MAT_SIZE*MAT_SIZE*sizeof(int));
-	kprint_adjacency_matrix(adj_mat_gpu, 0x8);
+	memcpy(adj_mat_gpu, adj_mat_cpu, MAT_SIZE*MAT_SIZE*sizeof(int));
+
+	kprint_adjacency_matrix(adj_mat_gpu, MAT_SIZE);
 
 
 	do_gettimeofday(&t0);
+
 	//sync call
 	qhgpu_call_sync(req);
-	tt = 1000000*(t1.tv_sec-t0.tv_sec) +
-			((long)(t1.tv_usec) - (long)(t0.tv_usec));
-	printk("TIME: %10lu MS, OPS: %8lu\n", tt, 1000000/tt);
 
+	do_gettimeofday(&t1);
+	tt = 1000000*(t1.tv_sec-t0.tv_sec) + ((long)(t1.tv_usec) - (long)(t0.tv_usec));
+	printk("GPU TIME: %10lu MS\n", tt);
+
+	kprint_adjacency_matrix(adj_mat_gpu, MAT_SIZE);
 
 	do_gettimeofday(&t0);
-	floyd_warshall_cpu(adj_mat_cpu, MAT_SIZE);
+
+	kfloyd_warshall_cpu(adj_mat_cpu, MAT_SIZE);
+
 	do_gettimeofday(&t1);
 
-	tt = 1000000*(t1.tv_sec-t0.tv_sec) +
-			((long)(t1.tv_usec) - (long)(t0.tv_usec));
+	tt = 1000000*(t1.tv_sec-t0.tv_sec) + ((long)(t1.tv_usec) - (long)(t0.tv_usec));
 
-	printk("TIME: %10lu MS, OPS: %8lu\n", tt, 1000000/tt);
+	printk("CPU TIME: %10lu MS\n", tt);
+
+	kprint_adjacency_matrix(adj_mat_cpu, MAT_SIZE);
 
 	printk("[floyd warshall kernel module]minit end.\n");
 
