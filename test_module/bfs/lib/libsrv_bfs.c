@@ -14,100 +14,16 @@
 #include "../../../qhgpu/connector.h"
 #include "cl_bfs.h"
 
-////////////////////////////////////////////////////////////////
-const char *input_f = "../data/graph1MW_6.txt";
-////////////////////////////////////////////////////////////////
-
-
 typedef enum { false, true} bool;
 typedef enum { PAGEABLE, PINNED, NON } memoryMode;
 
 #define MAX_THREADS_PER_BLOCK 512
 int work_group_size = 512;
 
-struct Node
-{
+struct Node {
 	int starting;
 	int no_of_edges;
 };
-
-double gettime() {
-  struct timeval t;
-  gettimeofday(&t, NULL);
-  return t.tv_sec+t.tv_usec*1e-6;
-}
-
-void compare_results(const int *gpu_results, const int *cpu_results, const int size)
-{
-    bool passed = true;
-#pragma omp parallel for
-    int i;
-    for (i=0; i<size; i++)
-    {
-      if (cpu_results[i]!=gpu_results[i]){
-         passed = false;
-      }
-    }
-    if (passed)
-    {
-        printf ("--cambine:passed:-)");
-
-    }
-    else
-    {
-    	printf( "--cambine: failed:-(");
-    }
-    return ;
-}
-
-void run_bfs_cpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size, \
-		int *h_graph_edges, bool *h_graph_mask, bool *h_updating_graph_mask, \
-		bool *h_graph_visited, int *h_cost_ref){
-	bool stop;
-	int k = 0;
-	int tid, i ;
-
-	double time = 0;
-	double t1 = gettime();
-
-	do
-	{
-		stop=false;
-		for(tid= 0; tid < no_of_nodes; tid++ )
-		{
-			if (h_graph_mask[tid] == true)
-			{
-				h_graph_mask[tid]=false;
-				for(i = h_graph_nodes[tid].starting; i<(h_graph_nodes[tid].no_of_edges + h_graph_nodes[tid].starting); i++)
-				{
-					int id = h_graph_edges[i];
-
-					if(!h_graph_visited[id])
-					{
-						h_cost_ref[id]=h_cost_ref[tid]+1;
-						h_updating_graph_mask[id]=true;
-					}
-				}
-			}
-		}
-
-  		for(tid=0; tid< no_of_nodes ; tid++ )
-		{
-			if (h_updating_graph_mask[tid] == true){
-			h_graph_mask[tid]=true;
-			h_graph_visited[tid]=true;
-			stop=true;
-			h_updating_graph_mask[tid]=false;
-			}
-		}
-		k++;
-	}while(stop);
-
-	double t2 = gettime();
-	time += t2 - t1;
-
-	printf("Process time of CPU : %lf\n", time);
-}
 
 void run_bfs_gpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size, \
 		int *h_graph_edges, bool *h_graph_mask, bool *h_updating_graph_mask, \
@@ -120,11 +36,6 @@ void run_bfs_gpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size
 	cl_mem d_graph_nodes, d_graph_edges, d_graph_mask, d_updating_graph_mask, \
 		d_graph_visited, d_cost, d_over;
 	//--1 transfer data from host to device
-
-
-	double time = 0;
-	double t1 = gettime();
-	t1 = gettime();
 
 	if(memMode == PINNED)
 	{
@@ -200,53 +111,48 @@ void run_bfs_gpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size
 
 	_clMemcpyD2H(d_cost,no_of_nodes*sizeof(int), h_cost);
 
-	double t2 = gettime();
-	time += t2 - t1;
-
-	printf("Process time of GPU : %lf\n", time);
 	return ;
 }
 
-int bfs_cs(struct qhgpu_service_request *sr)
-{
-	printf("[libsrv_default] Info: default_cs\n");
+int bfs_cs(struct qhgpu_service_request *sr) {
+	printf("[libsrv bfs] bfs cs\n");
 	return 0;
 }
 
-// launch and copy result to sr->dout
-int bfs_launch(struct qhgpu_service_request *sr)
-{
+int bfs_launch(struct qhgpu_service_request *sr) {
+	unsigned int* mmap_data;
+	unsigned int mmap_size;
 
-	int i=0;
-
-	printf("\n\n init bfs =====\n");
-
-	int no_of_nodes;
+	int no_of_nodes, i, data_index;
 	int edge_list_size;
-	FILE * fp;
 
 	struct Node * h_graph_nodes;
 	bool *h_graph_mask, *h_updating_graph_mask, *h_graph_visited;
+	int *h_graph_edges;
+	int * h_cost;
+	int * h_cost_ref;
 
-	printf("Reading File...\n");
+	int source;
+	int num_of_blocks;
+	int num_of_threads_per_block;
+	int start, edgeno;
+	int id, cost;
 
+	printf("[libsrv bfs]mmap_ioctl launch\n");
 
-	fp = fopen(input_f, "r");
-	if(!fp)
-	{
-		printf("Error Reading graph file\n");
-		return 0;
-	}
+	//init mmap data
+	mmap_data = sr->mmap_addr;
+	mmap_size = sr->mmap_size;
+	data_index = 0;
 
+	//fscanf(fp, "%d", &no_of_nodes);
+	no_of_nodes = mmap_data[data_index];
+	data_index++;
 
-	int source = 0;
-	fscanf(fp, "%d", &no_of_nodes);
+	num_of_blocks = 1;
+	num_of_threads_per_block = no_of_nodes;
 
-	int num_of_blocks = 1;
-	int num_of_threads_per_block = no_of_nodes;
-
-	if(no_of_nodes > MAX_THREADS_PER_BLOCK)
-	{
+	if(no_of_nodes > MAX_THREADS_PER_BLOCK) {
 		num_of_blocks = (int)(no_of_nodes/(double)MAX_THREADS_PER_BLOCK);
 		num_of_threads_per_block = MAX_THREADS_PER_BLOCK;
 	}
@@ -257,11 +163,14 @@ int bfs_launch(struct qhgpu_service_request *sr)
 	h_updating_graph_mask = (bool*)malloc(sizeof(bool) * no_of_nodes);
 	h_graph_visited = (bool*)malloc(sizeof(bool) * no_of_nodes);
 
-	int start, edgeno;
 
-	for(i = 0 ; i < no_of_nodes; i++)
-	{
-		fscanf(fp, "%d %d",&start, &edgeno);
+	for(i = 0 ; i < no_of_nodes; i++) {
+		//fscanf(fp, "%d %d",&start, &edgeno);
+		start = mmap_data[data_index];
+		data_index++;
+		no_of_nodes = mmap_data[data_index];
+		edgeno++;
+
 		h_graph_nodes[i].starting = start;
 		h_graph_nodes[i].no_of_edges = edgeno;
 		h_graph_mask[i] = false;
@@ -269,27 +178,31 @@ int bfs_launch(struct qhgpu_service_request *sr)
 		h_graph_visited[i] = false;
 	}
 
-	fscanf(fp, "%d", &source);
+	//fscanf(fp, "%d", &source);
+	source = mmap_data[data_index];
+	data_index++;
 	source = 0;
 
 	h_graph_mask[source] = true;
 	h_graph_visited[source] = true;
-	fscanf(fp, "%d", &edge_list_size);
-	int id, cost;
-	int *h_graph_edges = (int*)malloc(sizeof(int) * edge_list_size);
+	//fscanf(fp, "%d", &edge_list_size);
+	edge_list_size = mmap_data[data_index];
+	data_index++;
 
-	for(i = 0; i < edge_list_size ; i++)
-	{
-		fscanf(fp, "%d", &id);
-		fscanf(fp, "%d", &cost);
+	h_graph_edges = (int*)malloc(sizeof(int) * edge_list_size);
+
+	for(i = 0; i < edge_list_size ; i++) {
+		//fscanf(fp, "%d", &id);
+		id = mmap_data[data_index];
+		data_index++;
+		//fscanf(fp, "%d", &cost);
+		cost = mmap_data[data_index];
+		data_index++;
 		h_graph_edges[i] = id;
 	}
 
-	if(fp)
-		fclose(fp);
-
-	int * h_cost = (int *)malloc(sizeof(int) * no_of_nodes);
-	int * h_cost_ref = (int *)malloc(sizeof(int) * no_of_nodes);
+	h_cost = (int *)malloc(sizeof(int) * no_of_nodes);
+	h_cost_ref = (int *)malloc(sizeof(int) * no_of_nodes);
 
 	for(i = 0; i < no_of_nodes ; i++){
 		h_cost[i] = -1;
@@ -301,73 +214,64 @@ int bfs_launch(struct qhgpu_service_request *sr)
 
 	run_bfs_gpu(no_of_nodes,h_graph_nodes,edge_list_size,h_graph_edges, h_graph_mask, h_updating_graph_mask, h_graph_visited, h_cost);
 
-	for(i = 0; i < no_of_nodes; i++){
+	/*for(i = 0; i < no_of_nodes; i++){
 		h_graph_mask[i]=false;
 		h_updating_graph_mask[i]=false;
 		h_graph_visited[i]=false;
 	}
+
 	//set the source node as true in the mask
 	source=0;
 	h_graph_mask[source]=true;
 	h_graph_visited[source]=true;
 	run_bfs_cpu(no_of_nodes,h_graph_nodes,edge_list_size,h_graph_edges, h_graph_mask, h_updating_graph_mask, h_graph_visited, h_cost_ref);
 
-	compare_results(h_cost, h_cost_ref, no_of_nodes);
+	compare_results(h_cost, h_cost_ref, no_of_nodes);*/
+
+	memcpy(mmap_data, h_cost, mmap_size * sizeof(int));
+
 	//release host memory
 	free(h_graph_nodes);
 	free(h_graph_mask);
 	free(h_updating_graph_mask);
 	free(h_graph_visited);
+
 	return 0;
 }
 
 
-int bfs_post(struct qhgpu_service_request *sr)
-{
-	printf("[libsrv_bfs] Info: bfs_post\n");
+int bfs_post(struct qhgpu_service_request *sr) {
+	printf("[libsrv bfs] bfs_post.\n");
 	return 0;
 }
 
-int bfs_prepare()
-{
-
+int bfs_prepare() {
+	return 0;
 }
 
 static struct qhgpu_service bfs;
 
-int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*),
-		cl_context ctx,
-		cl_device_id* dv)
-{
-	printf("[libsrv_bfs] Info: init bfs service !!!!\n");
+int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*), cl_context ctx, cl_device_id* dv) {
+	printf("[libsrv bfs] init bfs service.\n");
 
+	cl_context context;
+	cl_device_id dev = dv;
 
-
-	context= ctx;
+	context = ctx;
 	dev  = dv;
 
-	/////////////////////////////////////////////
-	//bfs init
-	/////////////////////////////////////////////
 	_clInit(context,dev);
-	/////////////////////////////////////////////
 
-
-
-	sprintf(bfs.name, "libsrv_bfs");
+	sprintf(bfs.name, "bfs_service");
 	bfs.sid = 1;
 	bfs.compute_size = bfs_cs;
 	bfs.launch = bfs_launch;
 	bfs.post = bfs_post;
 
-
 	return reg_srv(&bfs, lh);
 }
 
-int finit_service(void *lh, int (*unreg_srv)(const char*))
-{
-	printf("[libsrv_default] Info: finit test service\n");
+int finit_service(void *lh, int (*unreg_srv)(const char*)) {
+	printf("[libsrv bfs] finit bfs service.\n");
 	return unreg_srv(bfs.name);
 }
-
-

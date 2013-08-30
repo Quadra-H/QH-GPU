@@ -7,7 +7,6 @@
 #include <CL/opencl.h>
 #endif
 
-
 #define MAX_SOURCE_SIZE (0x100000)
 #define WORK_DIM 2	//work-items dimensions
 

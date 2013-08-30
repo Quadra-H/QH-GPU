@@ -1,5 +1,6 @@
 #include "cl_bfs.h"
 #include <stdio.h>
+
 #define MAX_SOURCE_SIZE (0x100000)
 #define WORK_DIM 2	//work-items dimensions
 
@@ -91,7 +92,7 @@ void _clInit(cl_context ctx,cl_device_id* devices)
 	int nKernel;
 	for (nKernel = 0; nKernel < 2; nKernel++)
 	{
-		/* get a kernel object handle for a kernel with the given name */
+		//get a kernel object handle for a kernel with the given name
 		cl_kernel kernel = clCreateKernel(oclHandles.program,
 											kernel_names[nKernel],
 											&resultCL);
@@ -367,8 +368,8 @@ void _clInvokeKernel2D(int kernel_id, int range_x, int range_y, int group_x, int
 	size_t local_work_size[] = {group_x, group_y};
 	size_t global_work_size[] = {range_x, range_y};
 	cl_event e[1];
-	/*if(work_items%work_group_size != 0)	//process situations that work_items cannot be divided by work_group_size
-	  work_items = work_items + (work_group_size-(work_items%work_group_size));*/
+	//if(work_items%work_group_size != 0)	//process situations that work_items cannot be divided by work_group_size
+	  //work_items = work_items + (work_group_size-(work_items%work_group_size));
 	oclHandles.cl_status = clEnqueueNDRangeKernel(oclHandles.queue, oclHandles.kernels[kernel_id], work_dim, 0, \
 											global_work_size, local_work_size, 0 , 0, &(e[0]) );
 	printf("ERROR : clEnqueueNDRangeKernel in _clInvokeKernel2D\n");
@@ -408,6 +409,5 @@ void _clFreePinnedMem(void * mem_h, int idxQ)
 		}
 	}
 }
-
 
 
