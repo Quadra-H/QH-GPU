@@ -34,7 +34,7 @@ struct floyd_warshall_data fw_data;
 
 // Default Process
 int floyd_warshall_cs(struct qhgpu_service_request *sr) {
-	printf("[libsrv_default] Info: mmap_ioctl_cs\n");
+	printf("[libsrv_default] Info: floyd_warshall_cs\n");
 	return 0;
 }
 
@@ -48,11 +48,11 @@ int floyd_warshall_launch(struct qhgpu_service_request *sr)
 	double data_size;
 	unsigned int mat_size;
 
-	printf("[libsrv_mmap_ioctl]mmap_ioctl launch\n");
+	printf("[libsrv_floyd_warshall]floyd_warshall launch\n");
 
 	mmap_data = sr->mmap_addr;
 	mmap_size = sr->mmap_size;
-	printf("[libsrv_mmap_ioctl] mmap_addr[%p], mmap_size[%x]\n", mmap_data, mmap_size);
+	printf("[libsrv_floyd_warshall] mmap_addr[%p], mmap_size[%x]\n", mmap_data, mmap_size);
 
 	data_size = mmap_size;
 	mat_size = sqrt(data_size);
@@ -71,7 +71,7 @@ int floyd_warshall_launch(struct qhgpu_service_request *sr)
 
 int floyd_warshall_post(struct qhgpu_service_request *sr)
 {
-	printf("[libsrv_mmap_ioctl] Info: mmap_ioctl_post\n");
+	printf("[libsrv_floyd_warshall] Info: floyd_warshall_post\n");
 	return 0;
 }
 
