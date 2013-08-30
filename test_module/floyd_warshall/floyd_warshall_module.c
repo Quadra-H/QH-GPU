@@ -105,7 +105,7 @@ static int floyd_warshall_module_callback(struct qhgpu_request *req) {
 
 
 static int __init minit(void) {
-	const unsigned int MAT_SIZE = 0x400;
+	const unsigned int MAT_SIZE = 0x200;
 
 	int* adj_mat_cpu;
 	int* adj_mat_gpu;
