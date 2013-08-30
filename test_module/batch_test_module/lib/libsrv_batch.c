@@ -59,11 +59,11 @@ int batch_launch(struct qhgpu_service_request *sr)
 	h_keys = (uint*)malloc(sizeof(uint)*mmap_size);
 
 
-	int *batch_cnt = (int*)sr->hin;
-	printf("batch_cnt: %d \n",*batch_cnt);
+	//int *batch_cnt = (int*)sr->hin;
+	printf("batch_cnt: %d \n",sr->batch_size);
 	int offset = 0;
-	for(i=0;i<batch_cnt[0];i++){
-		int cpy_size = batch_cnt[0] == (i+1) ? mmap_size%_MAX_BATCH_SIZE:_MAX_BATCH_SIZE	;
+	for(i=0;i<sr->batch_size;i++){
+		int cpy_size = sr->batch_size == (i+1) ? mmap_size%_MAX_BATCH_SIZE:_MAX_BATCH_SIZE	;
 		if(cpy_size ==0 )cpy_size= _MAX_BATCH_SIZE;
 
 
@@ -71,7 +71,7 @@ int batch_launch(struct qhgpu_service_request *sr)
 		memcpy(h_keys+offset,sr->mmap_addr, cpy_size*sizeof(uint));
 		offset+=cpy_size;
 
-		if((i+1)!=batch_cnt[0]){
+		if((i+1)!=sr->batch_size){
 			int r = ioctl(sr->devfd, QHGPU_IOC_BATCH_H2D,(unsigned long)sr->id);
 			if (r < 0) {
 				printf("device write fail!");
@@ -106,10 +106,10 @@ int batch_launch(struct qhgpu_service_request *sr)
 
 
 
-	batch_cnt = (int*)sr->hin;
+	//batch_cnt = (int*)sr->hin;
 	offset = 0;
-	for(i=0;i<batch_cnt[0];i++){
-		int cpy_size = batch_cnt[0] == (i+1) ? mmap_size%_MAX_BATCH_SIZE:_MAX_BATCH_SIZE	;
+	for(i=0;i<sr->batch_size;i++){
+		int cpy_size = sr->batch_size == (i+1) ? mmap_size%_MAX_BATCH_SIZE:_MAX_BATCH_SIZE	;
 		if(cpy_size ==0 )cpy_size= _MAX_BATCH_SIZE;
 
 
@@ -117,14 +117,14 @@ int batch_launch(struct qhgpu_service_request *sr)
 		memcpy(sr->mmap_addr,h_keys+offset, cpy_size*sizeof(uint));
 		offset+=cpy_size;
 
-		if((i+1)!=batch_cnt[0]){
-			int r = ioctl(sr->devfd, QHGPU_IOC_BATCH_D2H,(unsigned long)sr->id);
-			if (r < 0) {
-				printf("device write fail!");
-				perror("device write fail!");
-				abort();
-			}
+		//if((i+1)!=batch_cnt[0]){
+		int r = ioctl(sr->devfd, QHGPU_IOC_BATCH_D2H,(unsigned long)sr->id);
+		if (r < 0) {
+			printf("device write fail!");
+			perror("device write fail!");
+			abort();
 		}
+		//}
 	}
 
 

@@ -161,6 +161,22 @@ void rxSort(int *data, int size, int p, int k) {
 
 
 
+// check the computation at the end
+void check(int cnt,unsigned int* h_keys){
+
+	int i=0;
+	// first see if the final list is ordered
+	for(i=0;i<cnt-1;i++){
+		if (!(h_keys[i] <= h_keys[i+1])) {
+			printk("err entri : %d %d , %d %d",i,h_keys[i],i+1,h_keys[i+1] );
+			return;
+		}
+
+	}
+	printk("test OK !\n");
+}
+
+
 static int __init minit(void) {
 	printk("test_module init\n");
 	struct completion cs[BATCH_NR];
@@ -174,36 +190,35 @@ static int __init minit(void) {
 	long tt;
 
 
-	struct qhgpu_request *mmap_req;
 	struct qhgpu_request *req;
 	char *buf;
 
 	//// alloc request
-	char *service_name = "radix_service2";
-
-	req = qhgpu_alloc_request(_N,service_name);
+	req = qhgpu_alloc_request(_N,"radix_service2");
+	if (!req) {
+		printk("request null\n");
+		return 0;
+	}
 	req->callback = test_gpu_callback;
 	//////////////////////////////////////////////////////
 	// init mmap_addr
 	//////////////////////////////////////////////////////
 
+
 	unsigned int* h_keys = ( unsigned int * )req->kmmap_addr;
 	unsigned int i=0;
 	unsigned int num;
-
-	printk("\n\n set data");
 	for(i = 0; i < _N; i++){
 		get_random_bytes(&num, sizeof(i));
 		h_keys[i] = (num% _MAXINT);
-
 	}
 
-	printk("\n\nbefore sort");
+	printk("\n\nbefore sort\n");
 	printk("========================\n");
 	for(i = 0; i < 50; i++){
 		printk("%u ,",h_keys[i]);
 	}
-	printk("========================\n");
+	printk("\n========================\n");
 	///////////////////////////////////////////////////
 
 
@@ -217,8 +232,7 @@ static int __init minit(void) {
 			((long)(t1.tv_usec) - (long)(t0.tv_usec));
 
 	printk("SYNC  SIZE: %10lu B, TIME: %10lu MS, OPS: %8lu, BW: %8lu MB/S\n",
-			sz, tt, 1000000/tt, sz/tt);
-
+			_N, tt, 1000000/tt, sz/tt);
 
 
 
@@ -233,12 +247,19 @@ static int __init minit(void) {
 	h_keys = ( unsigned int * )req->kmmap_addr;
 
 	printk("\n\n");
+	printk("======= first 50 =======\n");
 	printk("========================\n");
 	for(i = 0; i < 50; i++){
 		printk("%u ,",h_keys[i]);
 	}
+	printk("\n========================\n");
+	printk("\n======= last 50 =======\n");
 	printk("========================\n");
-	///////////////////////////////////////////////////
+	for(i = _N-51; i < _N; i++){
+		printk("%u ,",h_keys[i]);
+	}
+	printk("\n========================\n");
+	check(_N, h_keys);
 
 
 	if((counts = (unsigned int *)__get_free_pages(GFP_KERNEL, 10))==NULL)return;
@@ -268,7 +289,7 @@ static int __init minit(void) {
 				((long)(t1.tv_usec) - (long)(t0.tv_usec));
 
 		printk("SYNC  SIZE: %10lu B, TIME: %10lu MS, OPS: %8lu, BW: %8lu MB/S\n",
-				sz, tt, 1000000/tt, sz/tt);
+				_N, tt, 1000000/tt, sz/tt);
 
 
 		printk("\n\n");
@@ -276,7 +297,7 @@ static int __init minit(void) {
 		for(i = 0; i < 50; i++){
 			printk("%d ,",cpu_keys[i]);
 		}
-		printk("========================\n");
+		printk("\n========================\n");
 		///////////////////////////////////////////////////
 	}
 

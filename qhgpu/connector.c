@@ -130,7 +130,8 @@ int qc_init(void) {
 
 	gpu_init();
 	// alloc GPU Pinned memory buffers
-	p = (void*) gpu_alloc_pinned_mem(QHGPU_BUF_SIZE + PAGE_SIZE);
+	//p = (void*) gpu_alloc_pinned_mem(QHGPU_BUF_SIZE + PAGE_SIZE);
+	p = (void*) malloc(QHGPU_BUF_SIZE + PAGE_SIZE);
 	//printf("alloc GPU Pinned memory buffers : %p \n", p);
 	hostbuf.uva = p;
 	hostbuf.size = QHGPU_BUF_SIZE;
@@ -668,15 +669,15 @@ int qc_get_next_service_request(void) {
 				return -123;
 			}
 
-			int *num = (int*)kureq.data;
-			printf("kureq.data: %d \n",num[0]);
+			//int *num = (int*)kureq.data;
+			printf("kureq.data: %d \n",kureq.id);
 			//num = (int*)kureq.in;
 			//printf("kureq.data in: %d \n",num[0]);
 
-			printf("kureq.mmap_addr  : %p, %d\n",mmap_addr_arr[0], service_cnt);
+			printf("kureq.mmap_addr  : %p, %d\n",mmap_addr_arr[kureq.id], service_cnt);
 			//if(num[0]>-1&&num[0]<service_cnt)
-			int idx = num[0];
-			kureq.mmap_addr = mmap_addr_arr[idx];
+			//int idx = num[0];
+			kureq.mmap_addr = mmap_addr_arr[kureq.id];
 
 			printf("kureq.mmap_addr  : %p\n",kureq.mmap_addr);
 			//req_call_count++;

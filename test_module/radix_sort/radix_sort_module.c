@@ -160,6 +160,21 @@ void rxSort(int *data, int size, int p, int k) {
 
 
 
+// check the computation at the end
+void check(int cnt,unsigned int* h_keys){
+
+	int i=0;
+	// first see if the final list is ordered
+	for(i=0;i<cnt-1;i++){
+		if (!(h_keys[i] <= h_keys[i+1])) {
+			printk("err entri : %d %d , %d %d",i,h_keys[i],i+1,h_keys[i+1] );
+			return;
+		}
+
+	}
+	printk("test OK !\n");
+}
+
 
 
 
@@ -199,12 +214,12 @@ static int __init minit(void) {
 		h_keys[i] = (num% _MAXINT);
 	}
 
-	printk("\n\nbefore sort");
+	printk("\n\nbefore sort\n");
 	printk("========================\n");
 	for(i = 0; i < 50; i++){
 		printk("%u ,",h_keys[i]);
 	}
-	printk("========================\n");
+	printk("\n========================\n");
 	///////////////////////////////////////////////////
 
 
@@ -218,7 +233,7 @@ static int __init minit(void) {
 			((long)(t1.tv_usec) - (long)(t0.tv_usec));
 
 	printk("SYNC  SIZE: %10lu B, TIME: %10lu MS, OPS: %8lu, BW: %8lu MB/S\n",
-			sz, tt, 1000000/tt, sz/tt);
+			_N*sizeof(int), tt, 1000000/tt, sz/tt);
 
 
 
@@ -233,12 +248,19 @@ static int __init minit(void) {
 	h_keys = ( unsigned int * )req->kmmap_addr;
 
 	printk("\n\n");
+	printk("======= first 50 =======\n");
 	printk("========================\n");
 	for(i = 0; i < 50; i++){
 		printk("%u ,",h_keys[i]);
 	}
+	printk("\n========================\n");
+	printk("\n======= last 50 =======\n");
 	printk("========================\n");
-	///////////////////////////////////////////////////
+	for(i = _N-51; i < _N; i++){
+		printk("%u ,",h_keys[i]);
+	}
+	printk("\n========================\n");
+	check(_N, h_keys);
 
 
 	if((counts = (unsigned int *)__get_free_pages(GFP_KERNEL, 10))==NULL)return;
@@ -268,7 +290,7 @@ static int __init minit(void) {
 				((long)(t1.tv_usec) - (long)(t0.tv_usec));
 
 		printk("SYNC  SIZE: %10lu B, TIME: %10lu MS, OPS: %8lu, BW: %8lu MB/S\n",
-				sz, tt, 1000000/tt, sz/tt);
+				_N*sizeof(int), tt, 1000000/tt, sz/tt);
 
 
 		printk("\n\n");
@@ -276,7 +298,7 @@ static int __init minit(void) {
 		for(i = 0; i < 50; i++){
 			printk("%d ,",cpu_keys[i]);
 		}
-		printk("========================\n");
+		printk("\n========================\n");
 		///////////////////////////////////////////////////
 	}
 
@@ -285,6 +307,7 @@ static int __init minit(void) {
 }
 
 static void __exit mexit(void) {
+
 	printk("test_module exit\n");
 }
 

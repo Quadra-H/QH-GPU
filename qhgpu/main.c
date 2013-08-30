@@ -45,6 +45,7 @@ static struct kmem_cache *qhgpu_sync_call_data_cache;
 //
 static struct qhgpu_module** module_arr;
 static char** mmap_addr_arr;
+static int* module_active_checker;
 static int module_cnt=0;
 //
 
@@ -279,6 +280,7 @@ static void fill_ku_request(struct qhgpu_ku_request *kureq, struct qhgpu_request
 	//kureq->mmap_addr = qhgpudev.mmap_private_data;
 	kureq->kmmap_addr = req->kmmap_addr;
 	kureq->mmap_size = req->mmap_size;
+	kureq->batch_size = req->batch_size;
 
 
 
@@ -294,11 +296,11 @@ static void fill_ku_request(struct qhgpu_ku_request *kureq, struct qhgpu_request
 	}
 
 
-	int *nm = (int*)kureq->in;
+	/*int *nm = (int*)kureq->in;
 	nm[0]=*((int*)req->in);
 	printk("========================== \n");
 	printk("num: %d \n",nm[0]);
-	printk("========================== \n");
+	printk("========================== \n");*/
 
 	if (ADDR_WITHIN(req->out, qhgpudev.gmpool.kva,
 			qhgpudev.gmpool.npages<<PAGE_SHIFT)) {
@@ -318,6 +320,14 @@ static void fill_ku_request(struct qhgpu_ku_request *kureq, struct qhgpu_request
 		kureq->data = req->udata;
 	}
 	//////////////////
+	/*nm = (int*)kureq->data;
+	nm[0]=*((int*)req->udata);
+	printk("========================== \n");
+	printk("data: %d \n",nm[0]);
+	printk("========================== \n");
+	 */
+
+
 
 	kureq->insize = req->insize;
 	kureq->outsize = req->outsize;
@@ -429,6 +439,8 @@ ssize_t qhgpu_read(struct file *filp, char __user *buf, size_t c, loff_t *fpos) 
 	r = qhgpudev.reqs.next;
 	list_del(r);
 	item = list_entry(r, struct _qhgpu_request_item, list);	/// get request item
+
+	printk("qhgpu_read item id: %d  \n",item->r->id);
 	if (item) {
 		struct qhgpu_ku_request kureq;
 		fill_ku_request(&kureq, item->r);
@@ -485,7 +497,9 @@ static long qhgpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) 
 		printk("qhgpu_ioctl QHGPU_IOC_SET_MMAP.  %ld\n",arg);
 
 
+		module_cnt = arg;
 		////// multi module setting
+		module_active_checker=(int*)vmalloc(sizeof(int*)*arg);
 		qhgpudev.kmmap_addr_arr=(char**)vmalloc(sizeof(char*)*arg);
 		mmap_addr_arr = (char**)vmalloc(sizeof(char*)*arg);
 		module_arr=(char**)vmalloc(sizeof(struct qhgpu_module*)*arg);
@@ -784,25 +798,28 @@ struct qhgpu_request* qhgpu_alloc_request(int data_size, char *service_name) {
 	strcpy(req->service_name, service_name);
 	req->id = qhgpu_mmap_id();
 
-	int *id_buf = (int*)qhgpu_vmalloc(sizeof( int ));
-	printk("req->id %d , %c \n", req->id, id_buf[0]);
+	/*int *id_buf = (int*)qhgpu_vmalloc(sizeof( int ));
+	printk("req->id %d  \n", req->id, id_buf[0]);
 	req->udata = id_buf;
 
 	int *batch_cnt = (int*)qhgpu_vmalloc(sizeof( int ));				////batch count
 	batch_cnt[0]=(data_size%_MAX_BATCH_SIZE==0) ? data_size/_MAX_BATCH_SIZE:(data_size/_MAX_BATCH_SIZE)+1;
-	req->in = batch_cnt;
+	req->in = batch_cnt;*/
 
 	/*int *batch_out_cnt = (int*)qhgpu_vmalloc(sizeof( int ));				////batch count
 	batch_out_cnt[0]=(data_size%_MAX_BATCH_SIZE==0) ? data_size/_MAX_BATCH_SIZE:(data_size/_MAX_BATCH_SIZE)+1;
 	req->out = batch_out_cnt;
 	*/
 
-	printk("in,out ,batch_cnt: %d \n", ((int*)(req->in))[0]);
+	//printk("in,out ,batch_cnt: %d \n", ((int*)(req->in))[0]);
+
+
 
 
 
 	req->kmmap_addr = qhgpu_mmap_addr_pass(req->id);
 	req->mmap_size = data_size;
+	req->batch_size = (data_size%_MAX_BATCH_SIZE==0) ? data_size/_MAX_BATCH_SIZE:(data_size/_MAX_BATCH_SIZE)+1;
 
 	return req;
 }
@@ -877,7 +894,14 @@ int qhgpu_call_sync(struct qhgpu_request *req) {
 	req->callback = data->oldcallback;
 	kmem_cache_free(qhgpu_sync_call_data_cache, data);
 
+
 	printk("qhgpu_call_sync DONE~!!!\n");
+
+
+
+	///////////////////////////////////////////////////
+	qhgpu_return_mmap(req->id);
+	///////////////////////////////////////////////////
 	return 0;
 }
 EXPORT_SYMBOL_GPL( qhgpu_call_sync);
@@ -1013,9 +1037,25 @@ EXPORT_SYMBOL_GPL(qhgpu_mmap_addr_pass);
 
 int qhgpu_mmap_id() {
 	//return qhgpudev.mmap_private_data;
-	return module_cnt++;
+
+	int i=0;
+	for(i=0;i<module_cnt;i++){
+		if(module_active_checker[i]==0){
+			module_active_checker[i]=1;
+			return i;
+		}
+	}
+	return 0;
 }
 EXPORT_SYMBOL_GPL(qhgpu_mmap_id);
+
+void qhgpu_return_mmap(int module_id) {
+
+	printk("return mmap !! \n");
+	module_active_checker[module_id]=0;
+
+}
+EXPORT_SYMBOL_GPL(qhgpu_return_mmap);
 
 
 

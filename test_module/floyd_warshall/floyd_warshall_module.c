@@ -152,6 +152,8 @@ static int __init minit(void) {
 
 	kprint_adjacency_matrix(adj_mat_gpu, MAT_SIZE);
 
+
+
 	do_gettimeofday(&t0);
 
 	kfloyd_warshall_cpu(adj_mat_cpu, MAT_SIZE);

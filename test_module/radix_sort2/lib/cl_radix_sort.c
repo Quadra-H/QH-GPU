@@ -77,7 +77,7 @@ void build_cl_radix_sort(cl_context ctx,
 	cl_int err;
 	size_t szKernelLength;
 	char* prog = NULL;
-	const char* cSourceFile = "./cl_radix_sort.cl";//커널파일 이름
+	const char* cSourceFile = "./cl_radix_sort2.cl";//커널파일 이름
 	printf("oclLoadProgSource (%s)...\n", cSourceFile);
 	prog = oclLoadProgSource(cSourceFile, "", &szKernelLength);
 

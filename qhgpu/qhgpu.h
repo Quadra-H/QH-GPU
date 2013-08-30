@@ -31,7 +31,7 @@ struct qhgpu_gpu_mem_info {
 
 
 
-#define _MAX_BATCH_SIZE (1<<20)
+#define _MAX_BATCH_SIZE (1<<18)
 #define QHGPU_SERVICE_NAME_SIZE 32
 
 
@@ -41,7 +41,7 @@ struct qhgpu_ku_request {
     char *mmap_addr, *kmmap_addr;
     char service_name[QHGPU_SERVICE_NAME_SIZE];
     void *in, *out, *data;
-    unsigned long insize, outsize, datasize, mmap_size;
+    unsigned long insize, outsize, datasize, mmap_size,batch_size;
 };
 
 /* qhgpu's errno */
@@ -103,7 +103,7 @@ struct qhgpu_service_request {
     void *din, *dout, *ddata;
     char* kmmap_addr;
     char* mmap_addr;
-    unsigned long insize, outsize, datasize,mmap_size;
+    unsigned long insize, outsize, datasize,mmap_size,batch_size;
     int errcode;
     struct qhgpu_service *s;
     int block_x, block_y;
@@ -143,6 +143,7 @@ struct qhgpu_request;
 
 char* qhgpu_mmap_addr_pass(int i);
 int qhgpu_mmap_id();
+void qhgpu_return_mmap(int module_id);
 
 extern void qhgpu_vfree(void *p);
 extern void* qhgpu_vmalloc(unsigned long nbytes);
@@ -164,7 +165,7 @@ struct qhgpu_request {
 	int id;
 	void *in, *out, *udata, *kdata;
 	char* mmap_addr, *kmmap_addr;
-	unsigned long insize, outsize, udatasize, kdatasize, mmap_size;
+	unsigned long insize, outsize, udatasize, kdatasize, mmap_size,batch_size;
 	char service_name[QHGPU_SERVICE_NAME_SIZE];
 	qhgpu_callback callback;
 	int errcode;
