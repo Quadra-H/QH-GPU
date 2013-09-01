@@ -5,7 +5,6 @@
  * All rights reserved.
  */
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,8 +13,12 @@
 #include "../../../qhgpu/connector.h"
 #include "cl_bfs.h"
 
-typedef enum { false, true} bool;
-typedef enum { PAGEABLE, PINNED, NON } memoryMode;
+typedef enum {
+	false, true
+} bool;
+typedef enum {
+	PAGEABLE, PINNED, NON
+} memoryMode;
 
 #define MAX_THREADS_PER_BLOCK 512
 int work_group_size = 512;
@@ -25,56 +28,58 @@ struct Node {
 	int no_of_edges;
 };
 
-void run_bfs_gpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size, \
-		int *h_graph_edges, bool *h_graph_mask, bool *h_updating_graph_mask, \
-		bool *h_graph_visited, int *h_cost)
-{
+void run_bfs_gpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size, int *h_graph_edges, bool *h_graph_mask, bool *h_updating_graph_mask, bool *h_graph_visited, int *h_cost) {
 	memoryMode memMode = PINNED;
 	//memoryMode memMode = NON;
 	//int number_elements = height*width;
 	bool h_over;
-	cl_mem d_graph_nodes, d_graph_edges, d_graph_mask, d_updating_graph_mask, \
-		d_graph_visited, d_cost, d_over;
+	cl_mem d_graph_nodes, d_graph_edges, d_graph_mask, d_updating_graph_mask, d_graph_visited, d_cost, d_over;
 	//--1 transfer data from host to device
 
-	if(memMode == PINNED)
-	{
-		printf("PINNED\n");
-		d_graph_nodes = _clCreateAndCpyPinnedMem(no_of_nodes*sizeof(struct Node), h_graph_nodes);
-		d_graph_edges = _clCreateAndCpyPinnedMem(edge_list_size*sizeof(int), h_graph_edges);
+	//printf("%d\n", no_of_nodes);
+
+	d_graph_mask = _clMalloc(no_of_nodes * sizeof(bool), NULL);
+	d_updating_graph_mask = _clMalloc(no_of_nodes * sizeof(bool), NULL);
+	d_graph_visited = _clMalloc(no_of_nodes * sizeof(bool), NULL);
+	d_cost = _clMallocRW(no_of_nodes * sizeof(int), NULL);
+	d_over = _clMallocRW(sizeof(bool), NULL);
+
+	if (memMode == PINNED) {
+		//printf("PINNED\n");
+		d_graph_nodes = _clCreateAndCpyPinnedMem(
+				no_of_nodes * sizeof(struct Node), h_graph_nodes);
+		d_graph_edges = _clCreateAndCpyPinnedMem(edge_list_size * sizeof(int),
+				h_graph_edges);
+	} else if (memMode == PAGEABLE) {
+		//printf("PAGEABLE\n");
+		d_graph_nodes = _clCreateAndCpyPagedMem(
+				no_of_nodes * sizeof(struct Node), (float*) h_graph_nodes);
+		d_graph_edges = _clCreateAndCpyPagedMem(edge_list_size * sizeof(int),
+				(float*) h_graph_edges);
+	} else {
+		//printf("non test\n");
+		d_graph_nodes = _clMalloc(no_of_nodes * sizeof(struct Node), h_graph_nodes);
+		d_graph_edges = _clMalloc(edge_list_size * sizeof(int), h_graph_edges);
+
+		_clMemcpyH2D(d_graph_nodes, no_of_nodes * sizeof(struct Node), h_graph_nodes);
+		_clMemcpyH2D(d_graph_edges, edge_list_size * sizeof(int), h_graph_edges);
 	}
-	else if(memMode == PAGEABLE)
-	{
-		printf("PAGEABLE\n");
-		d_graph_nodes = _clCreateAndCpyPagedMem(no_of_nodes*sizeof(struct Node), (float*)h_graph_nodes);
-		d_graph_edges = _clCreateAndCpyPagedMem(edge_list_size*sizeof(int), (float*)h_graph_edges);
-	}
-	else
-	{
-		printf("non test\n");
-		d_graph_nodes = _clMalloc(no_of_nodes*sizeof(struct Node), h_graph_nodes);
-		d_graph_edges = _clMalloc(edge_list_size*sizeof(int), h_graph_edges);
 
-		_clMemcpyH2D(d_graph_nodes, no_of_nodes*sizeof(struct Node), h_graph_nodes);
-		_clMemcpyH2D(d_graph_edges, edge_list_size*sizeof(int), h_graph_edges);
-
-	}
-
-	d_graph_mask = _clMalloc(no_of_nodes*sizeof(bool), h_graph_mask);
-	d_updating_graph_mask = _clMalloc(no_of_nodes*sizeof(bool), h_updating_graph_mask);
-	d_graph_visited = _clMalloc(no_of_nodes*sizeof(bool), h_graph_visited);
-	d_cost = _clMallocRW(no_of_nodes*sizeof(int), h_cost);
-	d_over = _clMallocRW(sizeof(bool), &h_over);
-
-	_clMemcpyH2D(d_graph_mask, no_of_nodes*sizeof(bool), h_graph_mask);
-	_clMemcpyH2D(d_updating_graph_mask, no_of_nodes*sizeof(bool), h_updating_graph_mask);
-	_clMemcpyH2D(d_graph_visited, no_of_nodes*sizeof(bool), h_graph_visited);
-	_clMemcpyH2D(d_cost, no_of_nodes*sizeof(int), h_cost);
+	/*d_graph_mask = _clMalloc(no_of_nodes*sizeof(bool), NULL);
+	 d_updating_graph_mask = _clMalloc(no_of_nodes*sizeof(bool), h_updating_graph_mask);
+	 d_graph_visited = _clMalloc(no_of_nodes*sizeof(bool), h_graph_visited);
+	 d_cost = _clMallocRW(no_of_nodes*sizeof(int), h_cost);
+	 d_over = _clMallocRW(sizeof(bool), &h_over);
+	 */
+	/**/
+	_clMemcpyH2D(d_graph_mask, no_of_nodes * sizeof(bool), h_graph_mask);
+	_clMemcpyH2D(d_updating_graph_mask, no_of_nodes * sizeof(bool), h_updating_graph_mask);
+	_clMemcpyH2D(d_graph_visited, no_of_nodes * sizeof(bool), h_graph_visited);
+	_clMemcpyH2D(d_cost, no_of_nodes * sizeof(int), h_cost);
 
 //--2 invoke kernel
 
-	do
-	{
+	do {
 		h_over = false;
 		_clMemcpyH2D(d_over, sizeof(bool), &h_over);
 		//--kernel 0
@@ -103,15 +108,15 @@ void run_bfs_gpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size
 		//work_items = no_of_nodes;
 		_clInvokeKernel(kernel_id, no_of_nodes, work_group_size);
 
-		_clMemcpyD2H(d_over,sizeof(bool), &h_over);
+		_clMemcpyD2H(d_over, sizeof(bool), &h_over);
 
-	}while(h_over);
+	} while (h_over);
 
 	_clFinish();
 
-	_clMemcpyD2H(d_cost,no_of_nodes*sizeof(int), h_cost);
+	_clMemcpyD2H(d_cost, no_of_nodes * sizeof(int), h_cost);/**/
 
-	return ;
+	return;
 }
 
 int bfs_cs(struct qhgpu_service_request *sr) {
@@ -138,7 +143,7 @@ int bfs_launch(struct qhgpu_service_request *sr) {
 	int start, edgeno;
 	int id, cost;
 
-	printf("[libsrv bfs]mmap_ioctl launch\n");
+	//printf("[libsrv bfs]mmap_ioctl launch\n");
 
 	//init mmap data
 	mmap_data = sr->mmap_addr;
@@ -147,29 +152,29 @@ int bfs_launch(struct qhgpu_service_request *sr) {
 
 	//fscanf(fp, "%d", &no_of_nodes);
 	no_of_nodes = mmap_data[data_index];
+	//printf("bfs_launch: no_of_nodes : %d \n", no_of_nodes);
 	data_index++;
 
 	num_of_blocks = 1;
 	num_of_threads_per_block = no_of_nodes;
 
-	if(no_of_nodes > MAX_THREADS_PER_BLOCK) {
-		num_of_blocks = (int)(no_of_nodes/(double)MAX_THREADS_PER_BLOCK);
+	if (no_of_nodes > MAX_THREADS_PER_BLOCK) {
+		num_of_blocks = (int) (no_of_nodes / (double) MAX_THREADS_PER_BLOCK);
 		num_of_threads_per_block = MAX_THREADS_PER_BLOCK;
 	}
 
 	work_group_size = num_of_threads_per_block;
-	h_graph_nodes = (struct Node*)malloc(sizeof(struct Node) * no_of_nodes);
-	h_graph_mask = (bool*)malloc(sizeof(bool) * no_of_nodes);
-	h_updating_graph_mask = (bool*)malloc(sizeof(bool) * no_of_nodes);
-	h_graph_visited = (bool*)malloc(sizeof(bool) * no_of_nodes);
+	h_graph_nodes = (struct Node*) malloc(sizeof(struct Node) * no_of_nodes);
+	h_graph_mask = (bool*) malloc(sizeof(bool) * no_of_nodes);
+	h_updating_graph_mask = (bool*) malloc(sizeof(bool) * no_of_nodes);
+	h_graph_visited = (bool*) malloc(sizeof(bool) * no_of_nodes);
 
-
-	for(i = 0 ; i < no_of_nodes; i++) {
+	for (i = 0; i < no_of_nodes; i++) {
 		//fscanf(fp, "%d %d",&start, &edgeno);
 		start = mmap_data[data_index];
 		data_index++;
-		no_of_nodes = mmap_data[data_index];
-		edgeno++;
+		edgeno = mmap_data[data_index];
+		data_index++;
 
 		h_graph_nodes[i].starting = start;
 		h_graph_nodes[i].no_of_edges = edgeno;
@@ -189,9 +194,9 @@ int bfs_launch(struct qhgpu_service_request *sr) {
 	edge_list_size = mmap_data[data_index];
 	data_index++;
 
-	h_graph_edges = (int*)malloc(sizeof(int) * edge_list_size);
+	h_graph_edges = (int*) malloc(sizeof(int) * edge_list_size);
 
-	for(i = 0; i < edge_list_size ; i++) {
+	for (i = 0; i < edge_list_size; i++) {
 		//fscanf(fp, "%d", &id);
 		id = mmap_data[data_index];
 		data_index++;
@@ -201,10 +206,10 @@ int bfs_launch(struct qhgpu_service_request *sr) {
 		h_graph_edges[i] = id;
 	}
 
-	h_cost = (int *)malloc(sizeof(int) * no_of_nodes);
-	h_cost_ref = (int *)malloc(sizeof(int) * no_of_nodes);
+	h_cost = (int *) malloc(sizeof(int) * no_of_nodes);
+	h_cost_ref = (int *) malloc(sizeof(int) * no_of_nodes);
 
-	for(i = 0; i < no_of_nodes ; i++){
+	for (i = 0; i < no_of_nodes; i++) {
 		h_cost[i] = -1;
 		h_cost_ref[i] = -1;
 	}
@@ -212,21 +217,21 @@ int bfs_launch(struct qhgpu_service_request *sr) {
 	h_cost[source] = 0;
 	h_cost_ref[source] = 0;
 
-	run_bfs_gpu(no_of_nodes,h_graph_nodes,edge_list_size,h_graph_edges, h_graph_mask, h_updating_graph_mask, h_graph_visited, h_cost);
+	run_bfs_gpu(no_of_nodes, h_graph_nodes, edge_list_size, h_graph_edges, h_graph_mask, h_updating_graph_mask, h_graph_visited, h_cost);
 
 	/*for(i = 0; i < no_of_nodes; i++){
-		h_graph_mask[i]=false;
-		h_updating_graph_mask[i]=false;
-		h_graph_visited[i]=false;
-	}
+	 h_graph_mask[i]=false;
+	 h_updating_graph_mask[i]=false;
+	 h_graph_visited[i]=false;
+	 }
 
-	//set the source node as true in the mask
-	source=0;
-	h_graph_mask[source]=true;
-	h_graph_visited[source]=true;
-	run_bfs_cpu(no_of_nodes,h_graph_nodes,edge_list_size,h_graph_edges, h_graph_mask, h_updating_graph_mask, h_graph_visited, h_cost_ref);
+	 //set the source node as true in the mask
+	 source=0;
+	 h_graph_mask[source]=true;
+	 h_graph_visited[source]=true;
+	 run_bfs_cpu(no_of_nodes,h_graph_nodes,edge_list_size,h_graph_edges, h_graph_mask, h_updating_graph_mask, h_graph_visited, h_cost_ref);
 
-	compare_results(h_cost, h_cost_ref, no_of_nodes);*/
+	 compare_results(h_cost, h_cost_ref, no_of_nodes);*/
 
 	memcpy(mmap_data, h_cost, mmap_size * sizeof(int));
 
@@ -239,7 +244,6 @@ int bfs_launch(struct qhgpu_service_request *sr) {
 	return 0;
 }
 
-
 int bfs_post(struct qhgpu_service_request *sr) {
 	printf("[libsrv bfs] bfs_post.\n");
 	return 0;
@@ -250,17 +254,16 @@ int bfs_prepare() {
 }
 
 static struct qhgpu_service bfs;
+cl_context context;
+cl_device_id* dev;
 
 int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*), cl_context ctx, cl_device_id* dv) {
 	printf("[libsrv bfs] init bfs service.\n");
 
-	cl_context context;
-	cl_device_id dev = dv;
-
 	context = ctx;
-	dev  = dv;
+	dev = dv;
 
-	_clInit(context,dev);
+	_clInit(context, dev);
 
 	sprintf(bfs.name, "bfs_service");
 	bfs.sid = 1;

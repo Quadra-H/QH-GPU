@@ -225,7 +225,8 @@ static int __init minit(void) {
 
 	do_gettimeofday(&t0);
 	///////////////////////////////////////////////////
-	qhgpu_call_sync(req);
+	//qhgpu_call_sync(req);
+	qhgpu_call_async(req);
 	///////////////////////////////////////////////////
 	do_gettimeofday(&t1);
 

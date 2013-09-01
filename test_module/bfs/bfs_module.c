@@ -15,20 +15,10 @@
 
 #include "../../qhgpu/qhgpu.h"
 
-#define __INT_MAX 9999999
-//#define __INT_MAX 2147483647;
-
-//typedef enum { false, true} bool;
-//typedef enum { PAGEABLE, PINNED, NON } memoryMode;
-
-//#define MAX_THREADS_PER_BLOCK 512
-//int work_group_size = 512;
-
 struct Node {
 	int starting;
 	int no_of_edges;
 };
-
 
 static int bfs_module_callback(struct qhgpu_request *req) {
 	//req->out have return data
@@ -137,12 +127,13 @@ void compare_results(const int *gpu_results, const int *cpu_results, const int s
 	bool passed = true;
 	int i;
 	for (i = 0; i < size; i++) {
+		//printk("%d , %d \n",cpu_results[i],  gpu_results[i]);
 		if (cpu_results[i] != gpu_results[i]) {
 			passed = false;
 		}
 	}
 	if (passed) {
-		printk("--cambine:passed:-)\n");
+		printk("--cambine: passed:-)\n");
 
 	} else {
 		printk("--cambine: failed:-(\n");
@@ -183,9 +174,6 @@ void run_bfs_cpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size
 		k++;
 	} while (stop);
 }
-
-
-
 
 
 
@@ -302,7 +290,6 @@ static int __init minit(void) {
 	h_cost[source] = 0;
 	h_cost_ref[source] = 0;
 
-
 	//bfs cpu
 	run_bfs_cpu(MAT_SIZE, h_graph_nodes, edge_list_size, h_graph_edges, h_graph_mask, h_updating_graph_mask, h_graph_visited, h_cost_ref);
 
@@ -310,18 +297,18 @@ static int __init minit(void) {
 	tt = 1000000*(t1.tv_sec-t0.tv_sec) + ((long)(t1.tv_usec) - (long)(t0.tv_usec));
 	printk("CPU TIME: %10lu MS\n", tt);
 
-/*
+
 	do_gettimeofday(&t0);
 
 	//bfs gpu srv call
-	//qhgpu_call_sync(req);
+	qhgpu_call_sync(req);
 
 	do_gettimeofday(&t1);
 
 	tt = 1000000*(t1.tv_sec-t0.tv_sec) + ((long)(t1.tv_usec) - (long)(t0.tv_usec));
 	printk("GPU TIME: %10lu MS\n", tt);
 
-*/
+	h_cost = (int*)data;
 
 	compare_results(h_cost, h_cost_ref, MAT_SIZE);
 

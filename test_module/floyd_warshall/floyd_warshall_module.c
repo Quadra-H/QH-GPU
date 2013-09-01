@@ -105,7 +105,7 @@ static int floyd_warshall_module_callback(struct qhgpu_request *req) {
 
 
 static int __init minit(void) {
-	const unsigned int MAT_SIZE = 0x200;
+	const unsigned int MAT_SIZE = 0x400;
 
 	int* adj_mat_cpu;
 	int* adj_mat_gpu;
@@ -118,6 +118,8 @@ static int __init minit(void) {
 	printk("[floyd warshall kernel module]minit\n");
 
 
+	do_gettimeofday(&t0);
+
 	// alloc request
 	//qhgpu_alloc_request( num_of_int , serv_name )  num_of_int == data_size / sizeof(int)
 	req = qhgpu_alloc_request( MAT_SIZE*MAT_SIZE, "floyd_warshall_service");
@@ -127,6 +129,12 @@ static int __init minit(void) {
 	}
 
 	req->callback = floyd_warshall_module_callback;
+
+	do_gettimeofday(&t1);
+	tt = 1000000*(t1.tv_sec-t0.tv_sec) + ((long)(t1.tv_usec) - (long)(t0.tv_usec));
+	printk("alloc request data: %10lu MS\n", tt);
+
+	do_gettimeofday(&t0);
 
 	// init mmap_addr
 	adj_mat_gpu = (int*)req->kmmap_addr;
@@ -138,6 +146,10 @@ static int __init minit(void) {
 
 	memcpy(adj_mat_gpu, adj_mat_cpu, MAT_SIZE*MAT_SIZE*sizeof(int));
 
+	do_gettimeofday(&t1);
+	tt = 1000000*(t1.tv_sec-t0.tv_sec) + ((long)(t1.tv_usec) - (long)(t0.tv_usec));
+	printk("set data: %10lu MS\n", tt);
+
 	kprint_adjacency_matrix(adj_mat_gpu, MAT_SIZE);
 
 
@@ -145,14 +157,13 @@ static int __init minit(void) {
 
 	//sync call
 	qhgpu_call_sync(req);
+	//qhgpu_call_async(req);
 
 	do_gettimeofday(&t1);
 	tt = 1000000*(t1.tv_sec-t0.tv_sec) + ((long)(t1.tv_usec) - (long)(t0.tv_usec));
 	printk("GPU TIME: %10lu MS\n", tt);
 
 	kprint_adjacency_matrix(adj_mat_gpu, MAT_SIZE);
-
-
 
 	do_gettimeofday(&t0);
 
