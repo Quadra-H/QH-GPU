@@ -282,9 +282,7 @@ void _clInvokeKernel(int kernel_id, int work_items, int work_group_size) {
 	size_t local_work_size[] = { 64, 1 };
 	size_t global_work_size[] = { 1024, 1 };
 
-	oclHandles.cl_status = clEnqueueNDRangeKernel(oclHandles.queue,
-			oclHandles.kernels[kernel_id], work_dim, NULL, global_work_size,
-			local_work_size, 0, NULL, &e);
+	oclHandles.cl_status = clEnqueueNDRangeKernel(oclHandles.queue, oclHandles.kernels[kernel_id], work_dim, NULL, global_work_size, local_work_size, 0, NULL, &e);
 
 	if (oclHandles.cl_status != CL_SUCCESS) {
 		printf("ERROR : clEnqueueNDRangeKernel in _clInvokeKernel %d \n.\n",

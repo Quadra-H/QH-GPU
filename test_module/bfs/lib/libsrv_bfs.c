@@ -29,7 +29,7 @@ struct Node {
 };
 
 void run_bfs_gpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size, int *h_graph_edges, bool *h_graph_mask, bool *h_updating_graph_mask, bool *h_graph_visited, int *h_cost) {
-	memoryMode memMode = PINNED;
+	memoryMode memMode = NON;
 	//memoryMode memMode = NON;
 	//int number_elements = height*width;
 	bool h_over;

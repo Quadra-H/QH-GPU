@@ -228,12 +228,13 @@ static int __init minit(void) {
 	kgenerate_adjacency_matrix(adj_mat, MAT_SIZE, 20);
 	kprint_adjacency_matrix(adj_mat, MAT_SIZE);
 
+	do_gettimeofday(&t0);
+
 	//convert to example data
 	data_size = convert_to_exd(adj_mat, MAT_SIZE, data);
 	edge_list_size = data_size - 3 - MAT_SIZE;
 
 	//timer start here BC mmap data modified in convert_to_exd
-	do_gettimeofday(&t0);
 
 	h_graph_nodes = (struct Node *)__get_free_pages(GFP_KERNEL, 10);
 	h_graph_edges = (int *)__get_free_pages(GFP_KERNEL, 10);
