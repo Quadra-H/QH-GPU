@@ -18,9 +18,8 @@
 #include "connector.h"
 #include "qhgpu_daemon.h"
 
+
 LIST_HEAD(services);
-
-
 
 cl_context context;             // OpenCL context
 cl_device_id* devices;
@@ -103,6 +102,9 @@ int qc_load_service(const char *libpath)
 				"Warning: open %s error, %s\n",
 				libpath, dlerror());
 	} else {
+
+
+		printf("libpath: %s \n",libpath);
 		init = (fn_init_service)dlsym(lh, SERVICE_INIT);
 		if (!init)
 		{
@@ -148,6 +150,8 @@ int qc_load_all_services(const char *dir)
 		libpath = glb.gl_pathv[i];
 		e += qc_load_service(libpath);
 	}
+
+	//printf("qc_load_all_services :  %d \n",i);
 	globfree(&glb);
 	return i;
 }

@@ -29,7 +29,7 @@ struct Node {
 };
 
 void run_bfs_gpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size, int *h_graph_edges, bool *h_graph_mask, bool *h_updating_graph_mask, bool *h_graph_visited, int *h_cost) {
-	memoryMode memMode = NON;
+	memoryMode memMode = PAGEABLE;
 	//memoryMode memMode = NON;
 	//int number_elements = height*width;
 	bool h_over;
@@ -58,12 +58,14 @@ void run_bfs_gpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size
 				(float*) h_graph_edges);
 	} else {
 		//printf("non test\n");
+
 		d_graph_nodes = _clMalloc(no_of_nodes * sizeof(struct Node), h_graph_nodes);
 		d_graph_edges = _clMalloc(edge_list_size * sizeof(int), h_graph_edges);
 
-		_clMemcpyH2D(d_graph_nodes, no_of_nodes * sizeof(struct Node), h_graph_nodes);
-		_clMemcpyH2D(d_graph_edges, edge_list_size * sizeof(int), h_graph_edges);
+		//_clMemcpyH2D(d_graph_nodes, no_of_nodes * sizeof(struct Node), h_graph_nodes);
+		//_clMemcpyH2D(d_graph_edges, edge_list_size * sizeof(int), h_graph_edges);
 	}
+	//_clFinish();
 
 	/*d_graph_mask = _clMalloc(no_of_nodes*sizeof(bool), NULL);
 	 d_updating_graph_mask = _clMalloc(no_of_nodes*sizeof(bool), h_updating_graph_mask);

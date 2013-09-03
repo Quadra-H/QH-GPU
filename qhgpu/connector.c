@@ -593,7 +593,7 @@ int qc_get_next_service_request(void) {
 	pfd.events = POLLIN;
 	pfd.revents = 0;
 
-	//printf("qc_get_next_service_request start!!! \n");
+	printf("qc_get_next_service_request start!!! \n");
 
 	err = poll(&pfd, 1, list_empty(&all_reqs) ? -1 : 0);/// if list is empty polling (timeout -1)
 														/// qhgpudev.reqq poll_wait interrupted by call
@@ -965,8 +965,6 @@ int main(int argc, char *argv[]) {
 	qc_init();
 
 	int service_cnt = qc_load_all_services(service_lib_dir, context, devices);
-
-	service_cnt = qc_load_all_services(service_lib_dir,context,devices);
 
 	printf("service_cnt: %d \n",service_cnt);
 	if(service_cnt == 0) service_cnt = 1;

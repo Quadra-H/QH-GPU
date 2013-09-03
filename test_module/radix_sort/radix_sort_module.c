@@ -25,30 +25,33 @@
 #include "../../qhgpu/qhgpu.h"
 #include "./lib/cl_radix_sort_param.h"
 
+#define ASYNC_TEST
+#define BATCH_NR 10
+struct completion cs[BATCH_NR];
 
-#define BATCH_NR 3
 
-static int test_gpu_callback(struct qhgpu_request *req)
+static int done =0;
+static int async_gpu_callback(struct qhgpu_request *req)
 {
+	done++;
+	printk("async_gpu_callback %d\n",done);
 
-	printk("test_gpu_callback\n");
-	if(req->out!=NULL){
-		int* out_arr = (int*)req->out;
-		int i=0;
-		char buffer [50];
-		for(i=0;i<5;i++){
-
-			sprintf (buffer, "test_out 21 : %d ~~~~~ \n", out_arr[i]);
-			printk("%s",buffer);
+	if(done == BATCH_NR){
+		if(req->kdata!=NULL){
+			struct completion *c = (struct completion*)req->kdata;
+			complete(c);
 		}
 	}
-	struct completion *c = (struct completion*)req->kdata;
-	complete(c);
-
-
 	return 0;
 }
 
+
+static int sync_gpu_callback(struct qhgpu_request *req)
+{
+	done++;
+	printk("sync_gpu_callback\n");
+	return 0;
+}
 
 
 
@@ -179,8 +182,8 @@ void check(int cnt,unsigned int* h_keys){
 
 
 static int __init minit(void) {
-	printk("test_module init\n");
-	struct completion cs[BATCH_NR];
+	printk("radix_sort_module init\n");
+
 
 	int err=0;
 
@@ -188,7 +191,7 @@ static int __init minit(void) {
 	unsigned int cur;
 	unsigned long sz;
 	struct timeval t0, t1;
-	long tt;
+	long tt,start,end;
 
 
 	struct qhgpu_request *req;
@@ -200,10 +203,11 @@ static int __init minit(void) {
 		printk("request null\n");
 		return 0;
 	}
-	req->callback = test_gpu_callback;
 	//////////////////////////////////////////////////////
 	// init mmap_addr
 	//////////////////////////////////////////////////////
+	req->callback = sync_gpu_callback;
+
 
 
 	unsigned int* h_keys = ( unsigned int * )req->kmmap_addr;
@@ -225,20 +229,15 @@ static int __init minit(void) {
 
 	do_gettimeofday(&t0);
 	///////////////////////////////////////////////////
-	//qhgpu_call_sync(req);
-	qhgpu_call_async(req);
+	qhgpu_call_sync(req);
 	///////////////////////////////////////////////////
 	do_gettimeofday(&t1);
 
+
 	tt = 1000000*(t1.tv_sec-t0.tv_sec) +
 			((long)(t1.tv_usec) - (long)(t0.tv_usec));
-
 	printk("SYNC  SIZE: %10lu B, TIME: %10lu MS, OPS: %8lu, BW: %8lu MB/S\n",
 			_N*sizeof(int), tt, 1000000/tt, sz/tt);
-
-
-
-
 
 
 
@@ -309,7 +308,7 @@ static int __init minit(void) {
 
 static void __exit mexit(void) {
 
-	printk("test_module exit\n");
+	printk("radix_sort_module exit\n");
 }
 
 module_init( minit);

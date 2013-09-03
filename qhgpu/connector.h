@@ -20,7 +20,7 @@
 #include <CL/opencl.h>
 #endif
 
-#define QC_LOG
+//#define QC_LOG
 
 struct qhgpu_service {
 	char name[QHGPU_SERVICE_NAME_SIZE];

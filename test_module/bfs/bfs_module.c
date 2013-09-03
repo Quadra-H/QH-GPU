@@ -127,8 +127,9 @@ void compare_results(const int *gpu_results, const int *cpu_results, const int s
 	bool passed = true;
 	int i;
 	for (i = 0; i < size; i++) {
-		//printk("%d , %d \n",cpu_results[i],  gpu_results[i]);
+
 		if (cpu_results[i] != gpu_results[i]) {
+			printk("%d , %d \n",cpu_results[i],  gpu_results[i]);
 			passed = false;
 		}
 	}
@@ -178,7 +179,7 @@ void run_bfs_cpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size
 
 
 static int __init minit(void) {
-	const unsigned int MAT_SIZE = 0x400;
+	const unsigned int MAT_SIZE = 0x800;
 	unsigned int data_size;
 	unsigned int edge_list_size;
 
@@ -221,28 +222,31 @@ static int __init minit(void) {
 	//max MAT_SIZE == 0x400
 	//0x400 == 2^10  0x400^2 == sizeof(int)*2^10*2^10
 	//alloc adj_mat
-	adj_mat = (unsigned int*)__get_free_pages(GFP_KERNEL, 10);
+	adj_mat = (unsigned int*)vmalloc(1024*1024*4*4);//(unsigned int*)__get_free_pages(GFP_KERNEL, 10);
 	data_index = 0;
 
 	//generate adj mat
-	kgenerate_adjacency_matrix(adj_mat, MAT_SIZE, 20);
+	kgenerate_adjacency_matrix(adj_mat, MAT_SIZE, 30);
 	kprint_adjacency_matrix(adj_mat, MAT_SIZE);
 
 	do_gettimeofday(&t0);
 
 	//convert to example data
 	data_size = convert_to_exd(adj_mat, MAT_SIZE, data);
+	printk("convert_to_exd done !!! \n");
+
+
 	edge_list_size = data_size - 3 - MAT_SIZE;
 
 	//timer start here BC mmap data modified in convert_to_exd
 
-	h_graph_nodes = (struct Node *)__get_free_pages(GFP_KERNEL, 10);
-	h_graph_edges = (int *)__get_free_pages(GFP_KERNEL, 10);
-	h_graph_mask = (bool*)__get_free_pages(GFP_KERNEL, 10);
-	h_updating_graph_mask = (bool*)__get_free_pages(GFP_KERNEL, 10);
-	h_graph_visited = (bool*)__get_free_pages(GFP_KERNEL, 10);
-	h_cost = (int *)__get_free_pages(GFP_KERNEL, 10);
-	h_cost_ref = (int *)__get_free_pages(GFP_KERNEL, 10);
+	h_graph_nodes = (struct Node *)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
+	h_graph_edges = (int *)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
+	h_graph_mask = (bool*)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
+	h_updating_graph_mask = (bool*)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
+	h_graph_visited = (bool*)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
+	h_cost = (int *)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
+	h_cost_ref = (int *)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
 
 	data_index++;
 	//input data
@@ -301,7 +305,10 @@ static int __init minit(void) {
 
 	do_gettimeofday(&t0);
 
+
+
 	//bfs gpu srv call
+	req->mmap_size = data_size;
 	qhgpu_call_sync(req);
 
 	do_gettimeofday(&t1);
@@ -313,14 +320,14 @@ static int __init minit(void) {
 
 	compare_results(h_cost, h_cost_ref, MAT_SIZE);
 
-	free_pages((long unsigned int)h_graph_nodes, 10);
+	/*free_pages((long unsigned int)h_graph_nodes, 10);
 	free_pages((long unsigned int)h_graph_edges, 10);
 	free_pages((long unsigned int)h_graph_mask, 10);
 	free_pages((long unsigned int)h_updating_graph_mask, 10);
 	free_pages((long unsigned int)h_graph_visited, 10);
 	free_pages((long unsigned int)h_cost, 10);
 	free_pages((long unsigned int)h_cost_ref, 10);
-
+*/
 	printk("[bfs kernel module]minit end.\n");
 
 	return 0;

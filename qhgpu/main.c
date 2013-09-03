@@ -909,6 +909,18 @@ EXPORT_SYMBOL_GPL( qhgpu_call_sync);
 
 
 
+//
+//int qhgpu_call_n_async(struct qhgpu_request **req, struct completion* cs, int n){
+//
+//	int i=0;
+//	for(int i=0;i<n;i++){
+//		qhgpu_call_async(req[i]);
+//	}
+//
+//	for (i=0; i<BATCH_NR; i++)
+//		wait_for_completion(cs+i);
+//
+//}
 
 /*
  * Async GPU call.
@@ -934,6 +946,7 @@ int qhgpu_call_async(struct qhgpu_request *req)
 
 	INIT_LIST_HEAD(&item->list);
 	list_add_tail(&item->list, &(qhgpudev.reqs));
+	//printk("wake up~~~~~~~~~~~~~~~~~~~~~~~!!!!!\n");
 	wake_up_interruptible(&(qhgpudev.reqq));
 
 	spin_unlock(&(qhgpudev.reqlock));

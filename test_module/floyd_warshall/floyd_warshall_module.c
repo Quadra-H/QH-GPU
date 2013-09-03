@@ -19,6 +19,36 @@
 #define __INT_MAX 9999999
 //#define __INT_MAX 2147483647;
 
+#define BATCH_NR 1000
+struct completion cs[BATCH_NR];
+
+static int done =0;
+static int async_gpu_callback(struct qhgpu_request *req)
+{
+
+	done++;
+	printk("async_gpu_callback %d\n",done);
+	/*if(req->out!=NULL){
+		int* out_arr = (int*)req->out;
+		int i=0;
+		char buffer [50];
+		for(i=0;i<5;i++){
+
+			sprintf (buffer, "test_out 21 : %d ~~~~~ \n", out_arr[i]);
+			printk("%s",buffer);
+		}
+	}*/
+
+	if(done == BATCH_NR){
+		if(req->kdata!=NULL){
+			struct completion *c = (struct completion*)req->kdata;
+			complete(c);
+		}
+	}
+
+	return 0;
+}
+
 
 /********************************
  * generate non directional adjacency matrix
@@ -113,7 +143,7 @@ static int __init minit(void) {
 	struct qhgpu_request *req;
 
 	struct timeval t0, t1;
-	long tt;
+	long tt,start,end;
 
 	printk("[floyd warshall kernel module]minit\n");
 
@@ -153,15 +183,33 @@ static int __init minit(void) {
 	kprint_adjacency_matrix(adj_mat_gpu, MAT_SIZE);
 
 
+	int i=0;
+
+	req->callback = async_gpu_callback;
+	for (i=0; i<1; i++){
+		init_completion(cs+i);
+		req->kdata = (void*)(cs+i);
+		req->kdatasize = sizeof(void*);
+	}
 	do_gettimeofday(&t0);
-
-	//sync call
-	qhgpu_call_sync(req);
-	//qhgpu_call_async(req);
-
+	///////////////////////////////////////////////////
+	//qhgpu_call_sync(req);
+	for(i=0;i<BATCH_NR;i++)
+		printk("floyd %d\n",i);//qhgpu_call_async(req);
+	//for (i=0; i<1; i++)
+	//	wait_for_completion(cs+i);
+	///////////////////////////////////////////////////
 	do_gettimeofday(&t1);
+
+	start = 1000000*(t0.tv_sec) +(long)(t0.tv_usec);	//1378157530656140
+	end = 1000000*(t1.tv_sec) +(long)(t1.tv_usec);	//1378157530734955
+
 	tt = 1000000*(t1.tv_sec-t0.tv_sec) + ((long)(t1.tv_usec) - (long)(t0.tv_usec));
 	printk("GPU TIME: %10lu MS\n", tt);
+	printk("START  TIME: %10lu MS\n",start);
+	printk("END  TIME: %10lu MS\n",end);
+
+
 
 	kprint_adjacency_matrix(adj_mat_gpu, MAT_SIZE);
 

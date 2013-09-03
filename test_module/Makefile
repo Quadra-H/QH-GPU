@@ -1,6 +1,6 @@
 obj-m += test_module.o
 
-SUBDIRS = floyd_warshall radix_sort bfs
+SUBDIRS = floyd_warshall radix_sort bfs async_benchmark
 
 all:  $(SUBDIRS)
 .PHONY: $(SUBDIRS)
