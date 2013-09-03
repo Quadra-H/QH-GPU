@@ -9,14 +9,9 @@ typedef struct{
 	int starting;
 	int no_of_edges;
 } Node;
+
 //--7 parameters
-__kernel void BFS_1( const __global Node* g_graph_nodes,
-					const __global int* g_graph_edges, 
-					__global bool* g_graph_mask, 
-					__global bool* g_updating_graph_mask, 
-					__global bool* g_graph_visited, 
-					__global int* g_cost, 
-					const  int no_of_nodes){
+__kernel void BFS_1( const __global Node* g_graph_nodes, const __global int* g_graph_edges, __global bool* g_graph_mask, __global bool* g_updating_graph_mask, __global bool* g_graph_visited, __global int* g_cost, const int no_of_nodes){
 	int tid = get_global_id(0);
 	if( tid<no_of_nodes && g_graph_mask[tid]){
 		g_graph_mask[tid]=false;
@@ -28,15 +23,12 @@ __kernel void BFS_1( const __global Node* g_graph_nodes,
 				}
 			}
 	}	
+	//printf("call cl kernel : BFS_1 %d \n",g_cost[tid]);
 }
 
 //--5 parameters
-__kernel void BFS_2(__global bool* g_graph_mask, 
-					__global bool* g_updating_graph_mask, 
-					__global bool* g_graph_visited, 
-					__global bool* g_over,
-					const  int no_of_nodes
-					) {
+__kernel void BFS_2(__global bool* g_graph_mask, __global bool* g_updating_graph_mask, __global bool* g_graph_visited, __global bool* g_over, const  int no_of_nodes) {
+	//printf("call cl kernel : BFS_2\n");
 	int tid = get_global_id(0);
 	if( tid<no_of_nodes && g_updating_graph_mask[tid]){
 
@@ -46,5 +38,3 @@ __kernel void BFS_2(__global bool* g_graph_mask,
 		g_updating_graph_mask[tid]=false;
 	}
 }
-
-
