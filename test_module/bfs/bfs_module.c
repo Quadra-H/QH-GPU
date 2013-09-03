@@ -1,4 +1,4 @@
-/* This work is licensed under the terms of the GNU GPL, version 2.  See
+/* This work is licensed under the terms of the GNU GPL, version 2. See
  * the GPL-COPYING file in the top-level directory.
  *
  * Copyright (c) 2010-2011 University of Utah and the Flux Group.
@@ -129,7 +129,7 @@ void compare_results(const int *gpu_results, const int *cpu_results, const int s
 	for (i = 0; i < size; i++) {
 
 		if (cpu_results[i] != gpu_results[i]) {
-			printk("%d , %d \n",cpu_results[i],  gpu_results[i]);
+			printk("%d , %d \n",cpu_results[i], gpu_results[i]);
 			passed = false;
 		}
 	}
@@ -179,7 +179,7 @@ void run_bfs_cpu(int no_of_nodes, struct Node *h_graph_nodes, int edge_list_size
 
 
 static int __init minit(void) {
-	const unsigned int MAT_SIZE = 0x800;
+	const unsigned int MAT_SIZE = 0x400;
 	unsigned int data_size;
 	unsigned int edge_list_size;
 
@@ -207,7 +207,7 @@ static int __init minit(void) {
 	printk("[bfs kernel module]minit\n");
 
 	// alloc request
-	//qhgpu_alloc_request( num_of_int , serv_name )  num_of_int == data_size / sizeof(int)
+	//qhgpu_alloc_request( num_of_int , serv_name ) num_of_int == data_size / sizeof(int)
 	req = qhgpu_alloc_request( MAT_SIZE*MAT_SIZE, "bfs_service");
 	if (!req) {
 		printk("request null\n");
@@ -220,9 +220,9 @@ static int __init minit(void) {
 	data = (unsigned int*)req->kmmap_addr;
 
 	//max MAT_SIZE == 0x400
-	//0x400 == 2^10  0x400^2 == sizeof(int)*2^10*2^10
+	//0x400 == 2^10 0x400^2 == sizeof(int)*2^10*2^10
 	//alloc adj_mat
-	adj_mat = (unsigned int*)vmalloc(1024*1024*4*4);//(unsigned int*)__get_free_pages(GFP_KERNEL, 10);
+	adj_mat = (unsigned int*)__get_free_pages(GFP_KERNEL, 10);
 	data_index = 0;
 
 	//generate adj mat
@@ -240,13 +240,13 @@ static int __init minit(void) {
 
 	//timer start here BC mmap data modified in convert_to_exd
 
-	h_graph_nodes = (struct Node *)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
-	h_graph_edges = (int *)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
-	h_graph_mask = (bool*)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
-	h_updating_graph_mask = (bool*)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
-	h_graph_visited = (bool*)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
-	h_cost = (int *)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
-	h_cost_ref = (int *)vmalloc(1024*1024*4*4);//__get_free_pages(GFP_KERNEL, 10);
+	h_graph_nodes = (struct Node *)__get_free_pages(GFP_KERNEL, 10);
+	h_graph_edges = (int *)__get_free_pages(GFP_KERNEL, 10);
+	h_graph_mask = (bool*)__get_free_pages(GFP_KERNEL, 10);
+	h_updating_graph_mask = (bool*)__get_free_pages(GFP_KERNEL, 10);
+	h_graph_visited = (bool*)__get_free_pages(GFP_KERNEL, 10);
+	h_cost = (int *)__get_free_pages(GFP_KERNEL, 10);
+	h_cost_ref = (int *)__get_free_pages(GFP_KERNEL, 10);
 
 	data_index++;
 	//input data
@@ -320,14 +320,15 @@ static int __init minit(void) {
 
 	compare_results(h_cost, h_cost_ref, MAT_SIZE);
 
-	/*free_pages((long unsigned int)h_graph_nodes, 10);
+
+	free_pages((long unsigned int)h_graph_nodes, 10);
 	free_pages((long unsigned int)h_graph_edges, 10);
 	free_pages((long unsigned int)h_graph_mask, 10);
 	free_pages((long unsigned int)h_updating_graph_mask, 10);
 	free_pages((long unsigned int)h_graph_visited, 10);
 	free_pages((long unsigned int)h_cost, 10);
 	free_pages((long unsigned int)h_cost_ref, 10);
-*/
+
 	printk("[bfs kernel module]minit end.\n");
 
 	return 0;
@@ -341,3 +342,4 @@ module_init( minit);
 module_exit( mexit);
 
 MODULE_LICENSE("GPL");
+
