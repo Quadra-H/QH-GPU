@@ -740,28 +740,29 @@ int qc_get_next_service_request(void) {
 int qc_launch_exec(struct _qhgpu_sritem *sreq) {
 	cl_int status;
 
+	pthread_t exec_thread;
+	int thr_id;
+	int r;
+
 #ifdef QC_LOG
 	struct timeval start_time, end_time, diff_time;
 	static unsigned int call_count = 0;
 	static struct timeval total_time;
-	static const char* func_name = "qc_fail_request";
+	static const char* func_name = "qc_launch_exec";
 
 	call_count++;
 	gettimeofday(&start_time, NULL);
 #endif
 
 
-
-	//// GPU computation
-	int r = sreq->sr.s->launch(&sreq->sr);
-	if (r) {
-		printf("%d fails launch\n", sreq->sr.id);
-		qc_fail_request(sreq, r);
-	} else {
+	thr_id = pthread_create(&exec_thread, NULL, sreq->sr.s->launch, (void*)&sreq->sr);
+	pthread_join(exec_thread, (void**)&r);
+	if (!r) {
 		sreq->sr.state = QHGPU_REQ_RUNNING;
 		list_del(&sreq->list);
 		list_add_tail(&sreq->list, &running_reqs);
 	}
+
 
 #ifdef QC_LOG
 	gettimeofday(&end_time, NULL);
