@@ -754,7 +754,6 @@ int qc_launch_exec(struct _qhgpu_sritem *sreq) {
 	gettimeofday(&start_time, NULL);
 #endif
 
-
 	thr_id = pthread_create(&exec_thread, NULL, sreq->sr.s->launch, (void*)&sreq->sr);
 	pthread_join(exec_thread, (void**)&r);
 	if (!r) {
@@ -763,6 +762,46 @@ int qc_launch_exec(struct _qhgpu_sritem *sreq) {
 		list_add_tail(&sreq->list, &running_reqs);
 	}
 
+	//forking
+	/*pid = fork();
+	if( pid == -1 ) {
+		printf("[qhgpu connector]error : fork error. qc_launch_exec.");
+		return -1;
+	}
+	else if( pid == 0 ) {
+		//child process
+
+		//// GPU computation
+		int r = sreq->sr.s->launch(&sreq->sr);
+		if (r) {
+			printf("%d fails launch\n", sreq->sr.id);
+			qc_fail_request(sreq, r);
+		} else {
+			printf("[qhgpu connector]launch exec 111\n");
+
+			sreq->sr.state = QHGPU_REQ_RUNNING;
+			list_del(&sreq->list);
+			list_add_tail(&sreq->list, &running_reqs);
+
+			//increase list count
+			//list_add_tail(&sreq->glist, &all_reqs);
+		}
+	}
+	else {
+		//parent process
+
+		list_del(&sreq->list);
+
+		//decrease list count
+		list_del(&sreq->glist);
+	}*/
+
+	/*int r = sreq->sr.s->launch(&sreq->sr);
+	if (!r) {
+		sreq->sr.state = QHGPU_REQ_RUNNING;
+		list_del(&sreq->list);
+		list_add_tail(&sreq->list, &running_reqs);
+	}*/
 
 #ifdef QC_LOG
 	gettimeofday(&end_time, NULL);
