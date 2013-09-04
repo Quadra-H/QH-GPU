@@ -223,7 +223,7 @@ ssize_t qhgpu_write(struct file *filp, const char __user *buf, size_t count, lof
 	ssize_t ret = 0;
 	size_t realcount;
 
-	printk("qhgpu_write called\n");
+	//printk("qhgpu_write called\n");
 
 	if (count < sizeof(struct qhgpu_ku_response))
 	ret = -EINVAL; /* Too small. */
@@ -240,7 +240,7 @@ ssize_t qhgpu_write(struct file *filp, const char __user *buf, size_t count, lof
 			ret = -EFAULT; /* no request found */
 		} else {
 
-			printk("request found !! %d \n",item->r->errcode);
+			//printk("request found !! %d \n",item->r->errcode);
 
 			item->r->errcode = kuresp.errcode;
 			/*if (unlikely(kuresp.errcode != 0)) {
@@ -262,13 +262,13 @@ ssize_t qhgpu_write(struct file *filp, const char __user *buf, size_t count, lof
 			 }
 			 }*/
 			item->r->callback(item->r);
-			printk("callback done !! \n");
+			//printk("callback done !! \n");
 			ret = count;/*realcount;*/
 			*fpos += ret;
 			kmem_cache_free(qhgpu_request_item_cache, item);
 		}
 	}
-	printk("qhgpu_write ret !! %d\n",ret);
+	//printk("qhgpu_write ret !! %d\n",ret);
 	return ret;
 }
 
@@ -334,7 +334,7 @@ static void fill_ku_request(struct qhgpu_ku_request *kureq, struct qhgpu_request
 	kureq->datasize = req->udatasize;
 
 
-	printk("{%p} fill_ku_request \n",req->mmap_addr);
+	//printk("{%p} fill_ku_request \n",req->mmap_addr);
 }
 
 static int set_gpu_mempool(char __user *buf) {
@@ -412,7 +412,7 @@ ssize_t qhgpu_read(struct file *filp, char __user *buf, size_t c, loff_t *fpos) 
 	struct list_head *r;
 	struct _qhgpu_request_item *item;
 
-	printk("qhgpu_read start !! \n");
+	//printk("qhgpu_read start !! \n");
 
 	////////////////////////////////////////////////////////////////////////
 	// call --> qhgpudev.reqs --> connector's qhgpu_ku_request
@@ -440,7 +440,7 @@ ssize_t qhgpu_read(struct file *filp, char __user *buf, size_t c, loff_t *fpos) 
 	list_del(r);
 	item = list_entry(r, struct _qhgpu_request_item, list);	/// get request item
 
-	printk("qhgpu_read item id: %d  \n",item->r->id);
+	//printk("qhgpu_read item id: %d  \n",item->r->id);
 	if (item) {
 		struct qhgpu_ku_request kureq;
 		fill_ku_request(&kureq, item->r);
@@ -460,7 +460,7 @@ ssize_t qhgpu_read(struct file *filp, char __user *buf, size_t c, loff_t *fpos) 
 		spin_lock(&(qhgpudev.rtdreqlock));
 		INIT_LIST_HEAD(&item->list);
 
-		printk("add item to qhgpudev.rtdreqs !! \n");
+		//printk("add item to qhgpudev.rtdreqs !! \n");
 		list_add_tail(&item->list, &(qhgpudev.rtdreqs));	///// rtdreqs [?]
 		spin_unlock(&(qhgpudev.rtdreqlock));
 	}
@@ -832,7 +832,7 @@ static int sync_callback(struct qhgpu_request *req) {
 	struct _qhgpu_sync_call_data *data =
 			(struct _qhgpu_sync_call_data*) req->kdata;
 
-	printk("sync_callback !!!!\n");
+	//printk("sync_callback !!!!\n");
 
 	data->done = 1;
 	wake_up_interruptible(&data->queue);
@@ -846,7 +846,7 @@ int qhgpu_call_sync(struct qhgpu_request *req) {
 	struct _qhgpu_sync_call_data *data;
 	struct _qhgpu_request_item *item;
 
-	printk("qhgpu_call_sync START~!!!\n");
+	//printk("qhgpu_call_sync START~!!!\n");
 
 	if (unlikely(qhgpudev.state == QHGPU_TERMINATED)) {
 		printk("qhgpu is terminated, no request accepted any more\n");
@@ -895,9 +895,7 @@ int qhgpu_call_sync(struct qhgpu_request *req) {
 	kmem_cache_free(qhgpu_sync_call_data_cache, data);
 
 
-	printk("qhgpu_call_sync DONE~!!!\n");
-
-
+	//printk("qhgpu_call_sync DONE~!!!\n");
 
 	///////////////////////////////////////////////////
 	qhgpu_return_mmap(req->id);
@@ -1064,7 +1062,7 @@ EXPORT_SYMBOL_GPL(qhgpu_mmap_id);
 
 void qhgpu_return_mmap(int module_id) {
 
-	printk("return mmap !! \n");
+	//printk("return mmap !! \n");
 	module_active_checker[module_id]=0;
 
 }
