@@ -611,7 +611,7 @@ static int qhgpu_mmap(struct file *filp, struct vm_area_struct *vma) {
 	//printk("qhgpu_mmap vma info. {%p, %p}\n", vma, vma->vm_private_data);
 
 	vma->vm_ops = &qhgpu_vm_ops;
-	vma->vm_flags |= VM_RESERVED;
+	vma->vm_flags |= VM_IO;
 	/* assign the file private data to the vm private data */
 
 	//b
