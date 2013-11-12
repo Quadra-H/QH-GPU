@@ -69,7 +69,7 @@ unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 	long tt;
 
 	//time stamp
-	do_gettimeofday(&t0);
+	//do_gettimeofday(&t0);
 
 	//http port number : 80
 	//get source and dest ip from iph
@@ -78,13 +78,25 @@ unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 	//get source and dest port from tcph
 	source = htons(tcph->source);
 	dest = htons(tcph->dest);
-	//if (iph->protocol == IPPROTO_UDP) {
-		//data = (char*) udph + sizeof(*udph);
+
+	if (iph->protocol == IPPROTO_UDP) {
+		data = (char*) udph + sizeof(*udph);
 		/* print udp data */
 		//printk("<1>source : %u \t dest : %u\n %s\n", source, dest, data);
-		//printk("<1>source : %u \t dest : %u\n buff_index[%4d]\n", source, dest, packet_buff_index);
+
+		for(i = 0 ; ; i++ ) {
+			if( data[i] == 0 )
+				break;
+		}
+
+		printk("NFmod:source[%u]dest[%u]datalen[%u]\n", source, dest, i);
+
 		//packet_buff_index++;
-	//}
+
+		return NF_QUEUE;
+	}
+
+	return NF_ACCEPT;
 
 	//do_gettimeofday(&t1);
 	//tt = 1000000*(t1.tv_sec-t0.tv_sec) + ((long)(t1.tv_usec) - (long)(t0.tv_usec));
@@ -105,7 +117,6 @@ unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 	//todo : buff count 가 차거나 일정 시간 이상 경과 시
 	//qhgpu sync or async call 호출
 
-	return NF_QUEUE;
 }
 
 int init_module() {
