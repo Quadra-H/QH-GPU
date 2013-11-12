@@ -5,4 +5,4 @@ all:
 	gcc libsrv_netfilter_firewall.c -lnfnetlink -lnetfilter_queue
 	
 clean:
-	rm -f *.o *.so
+	rm -f *.o *.so a.out
