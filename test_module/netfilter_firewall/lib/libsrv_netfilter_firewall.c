@@ -27,6 +27,15 @@
 #define TCP 6
 #define UDP 17
 
+struct u_packet {
+	int id;
+	unsigned char *payload;
+	int payload_len;
+};
+
+struct u_packet u_packet_buff[10];
+unsigned int u_packet_buff_index;
+
 struct queued_pkt {
 	uint32_t packet_id;
 	char indev[IFNAMSIZ];
@@ -68,7 +77,8 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 	case UDP:
 		udphdrs = (struct udphdr *) (dgram + sizeof(struct iphdr));
 
-		printf("sport : %u \t dport : %u\n", htons(udphdrs->source), htons(udphdrs->dest));
+		printf("sport : %u \t dport : %u\n", htons(udphdrs->source),
+				htons(udphdrs->dest));
 		printf("udp size : %u\n", htons(udphdrs->len));
 
 		//show_data = (char *) (dgram + datalen - sizeof(struct iphdr) - sizeof(struct udphdr));
@@ -76,9 +86,7 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 		//normaly can not recognize ,.....????
 		//printf("%s\n", show_data);
 		//if (strstr(show_data, ",,,,,,,,,,"))
-			//return NF_DROP;
-
-		return NF_ACCEPT;
+		//return NF_DROP;
 
 		break;
 
@@ -90,7 +98,71 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 	return NF_ACCEPT;
 }
 
-static int work_do(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data) {
+static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
+		struct nfq_data *nfa, void *data) {
+	int id = 0, status = 0;
+	struct queued_pkt q_pkt;
+	struct nfqnl_msg_packet_hdr *ph;
+	struct iphdr *iph = NULL;
+	struct timeval timestamp;
+	unsigned char *payload;
+	int ret;
+	u_int32_t POLICY;
+	unsigned int i;
+	int bid;
+	struct nfq_q_handle* bqh;
+
+#ifdef HAVE_NFQ_INDEV_NAME
+	struct nlif_handle *nlif_handle = (struct nlif_handle *) data;
+#endif
+
+	//q_pkt.payload_len = nfq_get_payload(nfa, &(q_pkt.payload));
+	//q_pkt.mark = nfq_get_nfmark(nfa);
+
+#ifdef HAVE_NFQ_INDEV_NAME
+	if (!get_interface_information(nlif_handle, &q_pkt, nfa)) {
+		log_area_printf(DEBUG_AREA_PACKET, DEBUG_LEVEL_INFO,
+				"Can not get interfaces information for message");
+		return 0;
+	}
+
+#else
+	snprintf(q_pkt.indev, sizeof(q_pkt.indev), "*");
+	snprintf(q_pkt.physindev, sizeof(q_pkt.physindev), "*");
+	snprintf(q_pkt.outdev, sizeof(q_pkt.outdev), "*");
+	snprintf(q_pkt.physoutdev, sizeof(q_pkt.physoutdev), "*");
+#endif
+
+	ret = nfq_get_timestamp(nfa, &timestamp);
+	if (ret == 0)
+		q_pkt.timestamp = timestamp.tv_sec;
+	else
+		q_pkt.timestamp = time(NULL);
+
+	ph = nfq_get_msg_packet_hdr(nfa);
+
+	if (ph) {
+		id = ntohl(ph->packet_id);
+
+		u_packet_buff[u_packet_buff_index].id = id;
+		u_packet_buff[u_packet_buff_index].payload_len = nfq_get_payload(nfa, &(u_packet_buff[u_packet_buff_index].payload));
+		u_packet_buff_index++;
+
+		if( u_packet_buff_index == 3 ) {
+			for( i = 0 ; i < 3 ; i++ ) {
+				//POLICY = show_packet(u_packet_buff.payload, u_packet_buff.payload_len);
+				//printf("[%5d]", u_packet_buff[i].id);
+				POLICY = NF_ACCEPT;
+				nfq_set_verdict(qh, u_packet_buff[i].id, POLICY, 0, NULL);
+			}
+
+			u_packet_buff_index = 0;
+		}
+	}
+}
+
+static int work_do(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
+		struct nfq_data *nfa, void *data) {
 	int id = 0, status = 0;
 	struct queued_pkt q_pkt;
 	struct nfqnl_msg_packet_hdr *ph;
@@ -102,13 +174,9 @@ static int work_do(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_d
 
 	printf("NFlibsrv:work_do\n");
 
-	//nf_reject(nfa);
-
 #ifdef HAVE_NFQ_INDEV_NAME
 	struct nlif_handle *nlif_handle = (struct nlif_handle *) data;
 #endif
-
-
 
 	q_pkt.payload_len = nfq_get_payload(nfa, &(q_pkt.payload));
 	q_pkt.mark = nfq_get_nfmark(nfa);
@@ -139,17 +207,17 @@ static int work_do(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_d
 		nfq_get_payload(nfa, &payload);
 
 		switch (ph->hook) {
-		case NF_IP_LOCAL_IN:
-			POLICY = show_packet(q_pkt.payload, q_pkt.payload_len);
-			break;
+			 case NF_IP_LOCAL_IN:
+				POLICY = show_packet(q_pkt.payload, q_pkt.payload_len);
+				break;
 
-		case NF_IP_LOCAL_OUT:
-			POLICY = show_packet(q_pkt.payload, q_pkt.payload_len);
-			break;
+			case NF_IP_LOCAL_OUT:
+				POLICY = show_packet(q_pkt.payload, q_pkt.payload_len);
+				break;
 
-		case NF_IP_FORWARD:
-			POLICY = show_packet(q_pkt.payload, q_pkt.payload_len);
-			break;
+			case NF_IP_FORWARD:
+				POLICY = show_packet(q_pkt.payload, q_pkt.payload_len);
+				break;
 		}
 
 		nfq_set_verdict(qh, id, POLICY, 0, NULL);
@@ -171,6 +239,8 @@ int netlink_init(int q_num) {
 	int fd, rv;
 	char buf[BUFSIZE];
 
+	u_packet_buff_index = 0;
+
 	h = nfq_open();
 	if (!h) {
 		fprintf(stderr, "Error During nfq_open()\n");
@@ -186,7 +256,7 @@ int netlink_init(int q_num) {
 		exit(-1);
 	}
 
-	qh = nfq_create_queue(h, q_num, &work_do, NULL);
+	qh = nfq_create_queue(h, q_num, &packet_buffering, NULL);
 	if (!qh) {
 		fprintf(stderr, "Error During nfq_create_queue()\n");
 		exit(-1);
@@ -203,13 +273,13 @@ int netlink_init(int q_num) {
 	fd = nfnl_fd(nh);
 
 	while ((rv = recv(fd, buf, sizeof(buf), 0)) && rv >= 0) {
-		printf("NFlibsrv:nfq_handle_packet rv[%d]\n", rv);
 		nfq_handle_packet(h, buf, rv);
 	}
 
 	fprintf(stderr, "NFQUEUE:unbinding from queue\n");
 	nfq_destroy_queue(qh);
 	nfq_close(h);
+
 	return (0);
 }
 
