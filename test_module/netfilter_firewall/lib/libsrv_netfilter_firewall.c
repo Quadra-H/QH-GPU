@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <linux/netfilter_ipv4.h>
 #include <libnetfilter_queue/libnetfilter_queue.h>
+#include <sys/time.h>
 //#include <openssl/md5.h>
 
 #define IFNAMSIZ 16
@@ -29,12 +30,13 @@
 
 struct u_packet {
 	int id;
-	unsigned char *payload;
+	unsigned char payload[576];
 	int payload_len;
 };
 
-struct u_packet u_packet_buff[10];
+struct u_packet u_packet_buff[16];
 unsigned int u_packet_buff_index;
+long first_rv_time;
 
 struct queued_pkt {
 	uint32_t packet_id;
@@ -108,9 +110,10 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	unsigned char *payload;
 	int ret;
 	u_int32_t POLICY;
+
 	unsigned int i;
-	int bid;
-	struct nfq_q_handle* bqh;
+	struct timeval tv;
+	long rv_time;
 
 #ifdef HAVE_NFQ_INDEV_NAME
 	struct nlif_handle *nlif_handle = (struct nlif_handle *) data;
@@ -145,11 +148,14 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 		id = ntohl(ph->packet_id);
 
 		u_packet_buff[u_packet_buff_index].id = id;
-		u_packet_buff[u_packet_buff_index].payload_len = nfq_get_payload(nfa, &(u_packet_buff[u_packet_buff_index].payload));
+		u_packet_buff[u_packet_buff_index].payload_len = nfq_get_payload(nfa, (unsigned char**)&(u_packet_buff[u_packet_buff_index].payload));
 		u_packet_buff_index++;
 
-		if( u_packet_buff_index == 3 ) {
-			for( i = 0 ; i < 3 ; i++ ) {
+		gettimeofday (&tv, NULL);
+		rv_time = (tv.tv_sec * 1000 + tv.tv_usec / 1000);
+
+		if( u_packet_buff_index == 8 || rv_time - first_rv_time > 1000 /*1000ms*/ ) {
+			for( i = 0 ; i < u_packet_buff_index ; i++ ) {
 				//POLICY = show_packet(u_packet_buff.payload, u_packet_buff.payload_len);
 				//printf("[%5d]", u_packet_buff[i].id);
 				POLICY = NF_ACCEPT;
@@ -157,6 +163,7 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 			}
 
 			u_packet_buff_index = 0;
+			first_rv_time = rv_time;
 		}
 	}
 }
