@@ -31,6 +31,7 @@
 struct u_packet {
 	int id;
 	unsigned char payload[576];
+	//unsigned char * payload;
 	int payload_len;
 };
 
@@ -79,8 +80,7 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 	case UDP:
 		udphdrs = (struct udphdr *) (dgram + sizeof(struct iphdr));
 
-		printf("sport : %u \t dport : %u\n", htons(udphdrs->source),
-				htons(udphdrs->dest));
+		printf("sport : %u \t dport : %u\n", htons(udphdrs->source), htons(udphdrs->dest));
 		printf("udp size : %u\n", htons(udphdrs->len));
 
 		//show_data = (char *) (dgram + datalen - sizeof(struct iphdr) - sizeof(struct udphdr));
@@ -115,12 +115,12 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	struct timeval tv;
 	long rv_time;
 
+	struct iphdr *iphdrs;
+
 #ifdef HAVE_NFQ_INDEV_NAME
 	struct nlif_handle *nlif_handle = (struct nlif_handle *) data;
 #endif
 
-	//q_pkt.payload_len = nfq_get_payload(nfa, &(q_pkt.payload));
-	//q_pkt.mark = nfq_get_nfmark(nfa);
 
 #ifdef HAVE_NFQ_INDEV_NAME
 	if (!get_interface_information(nlif_handle, &q_pkt, nfa)) {
@@ -148,7 +148,8 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 		id = ntohl(ph->packet_id);
 
 		u_packet_buff[u_packet_buff_index].id = id;
-		u_packet_buff[u_packet_buff_index].payload_len = nfq_get_payload(nfa, (unsigned char**)&(u_packet_buff[u_packet_buff_index].payload));
+		u_packet_buff[u_packet_buff_index].payload_len = nfq_get_payload(nfa, &payload);
+		memcpy(u_packet_buff[u_packet_buff_index].payload, payload, u_packet_buff[u_packet_buff_index].payload_len);
 		u_packet_buff_index++;
 
 		gettimeofday (&tv, NULL);
@@ -156,8 +157,8 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 
 		if( u_packet_buff_index == 8 || rv_time - first_rv_time > 1000 /*1000ms*/ ) {
 			for( i = 0 ; i < u_packet_buff_index ; i++ ) {
-				//POLICY = show_packet(u_packet_buff.payload, u_packet_buff.payload_len);
-				//printf("[%5d]", u_packet_buff[i].id);
+				POLICY = show_packet(u_packet_buff[i].payload, u_packet_buff[i].payload_len);
+
 				POLICY = NF_ACCEPT;
 				nfq_set_verdict(qh, u_packet_buff[i].id, POLICY, 0, NULL);
 			}
