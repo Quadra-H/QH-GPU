@@ -51,6 +51,15 @@ struct queued_pkt {
 	int payload_len;
 };
 
+void print_ip(int ip) {
+	unsigned char bytes[4];
+	bytes[0] = ip & 0xFF;
+	bytes[1] = (ip >> 8) & 0xFF;
+	bytes[2] = (ip >> 16) & 0xFF;
+	bytes[3] = (ip >> 24) & 0xFF;
+	printf("%3d.%3d.%3d.%3d", bytes[3], bytes[2], bytes[1], bytes[0]);
+}
+
 int show_packet(unsigned char *dgram, unsigned int datalen) {
 	struct iphdr *iphdrs;
 	struct tcphdr *tcphdrs;
@@ -70,6 +79,15 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 
 	switch (iphdrs->protocol) {
 	case TCP:
+		tcphdrs = (struct tcphdrs *) (dgram + sizeof(struct iphdr));
+
+		printf("TCP saddr[");
+		print_ip(iphdrs->saddr);
+		printf("]raddr[");
+		print_ip(iphdrs->daddr);
+		printf("]\n");
+		printf("TCP port sport : %u \t dport : %u\n", htons(tcphdrs->source), htons(tcphdrs->dest));
+
 		/*
 		 tcphdrs = (struct tcphdr *)(dgram + 4 * iphdrs->ihl);
 		 show_data = (char *)(dgram + datalen - 40);
@@ -80,8 +98,13 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 	case UDP:
 		udphdrs = (struct udphdr *) (dgram + sizeof(struct iphdr));
 
-		printf("sport : %u \t dport : %u\n", htons(udphdrs->source), htons(udphdrs->dest));
-		printf("udp size : %u\n", htons(udphdrs->len));
+		printf("UDP saddr[");
+		print_ip(iphdrs->saddr);
+		printf("]raddr[");
+		print_ip(iphdrs->daddr);
+		printf("]\n");
+		printf("UDP port sport : %u \t dport : %u\n", htons(udphdrs->source), htons(udphdrs->dest));
+		printf("UDP size : %u\n", htons(udphdrs->len));
 
 		//show_data = (char *) (dgram + datalen - sizeof(struct iphdr) - sizeof(struct udphdr));
 
