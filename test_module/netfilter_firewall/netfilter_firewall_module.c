@@ -16,28 +16,30 @@
 #include <linux/syscalls.h>
 #include <asm/uaccess.h>
 
-
 #include "myprotocol.h"
 #define DROP_NAME "drop"
 #define DROP_MAJOR 240
 
-unsigned int packet_buff_index = 0;
-
 unsigned long filter_addr[10];
+
 /* array that contains ip addresses to drop */
 unsigned int filter_addr_cnt = 0;
 static struct nf_hook_ops netfilter_ops;
 struct sk_buff *sock_buff;
 struct file_operations drop_fops;
+
 void add_addr(const char*);
+
 /* open() system call */
 int drop_open(struct inode *inode, struct file *filp) {
 	return 0;
 }
+
 /* close() system call */
 int drop_release(struct inode *inode, struct file *filp) {
 	return 0;
 }
+
 /* write() system call */
 ssize_t drop_write(struct file *filp, const char *buf, size_t count,
 		loff_t *fpos) {
@@ -49,7 +51,18 @@ ssize_t drop_write(struct file *filp, const char *buf, size_t count,
 	return 0;
 
 }
+
+void print_ip(int ip) {
+	unsigned char bytes[4];
+	bytes[0] = ip & 0xFF;
+	bytes[1] = (ip >> 8) & 0xFF;
+	bytes[2] = (ip >> 16) & 0xFF;
+	bytes[3] = (ip >> 24) & 0xFF;
+	printk("%3d.%3d.%3d.%3d", bytes[3], bytes[2], bytes[1], bytes[0]);
+}
+
 unsigned long inet_aton(const char*);
+
 unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 		const struct net_device *in, const struct net_device *out,
 		int (*okfn)(struct sk_buff*)) {
@@ -84,14 +97,23 @@ unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 		/* print udp data */
 		//printk("<1>source : %u \t dest : %u\n %s\n", source, dest, data);
 
-		for(i = 0 ; ; i++ ) {
-			if( data[i] == 0 )
-				break;
-		}
+		printk("NFmod:UDP saddr[");
+		print_ip(saddr);
+		printk("]raddr[");
+		print_ip(daddr);
+		printk("]\n");
+		printk("NFmod:UDP sport[%u]\tdport[%u]\n", source, dest);
 
-		printk("NFmod:source[%u]dest[%u]datalen[%u]\n", source, dest, i);
+		return NF_QUEUE;
+	}
+	else if(iph->protocol == IPPROTO_TCP){
 
-		//packet_buff_index++;
+		printk("NFmod:TCP saddr[");
+		print_ip(saddr);
+		printk("]raddr[");
+		print_ip(daddr);
+		printk("]\n");
+		printk("NFmod:TCP sport[%u]\tdport[%u]\n", source, dest);
 
 		return NF_QUEUE;
 	}
@@ -133,11 +155,13 @@ int init_module() {
 	register_chrdev(DROP_MAJOR, DROP_NAME, &drop_fops);
 	return 0;
 }
+
 void cleanup_module() {
 	nf_unregister_hook(&netfilter_ops);
 	//모듈해제
 	unregister_chrdev(DROP_MAJOR, DROP_NAME);
 }
+
 unsigned long inet_aton(const char * str) {
 	unsigned long result = 0;
 	unsigned int iaddr[4] = { 0, };
@@ -155,6 +179,7 @@ unsigned long inet_aton(const char * str) {
 	result |= addr[0];
 	return result;
 }
+
 /* add address to drop */
 void add_addr(const char *addr) {
 	filter_addr[filter_addr_cnt++] = inet_aton(addr);
