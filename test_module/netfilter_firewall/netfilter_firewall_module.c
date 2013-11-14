@@ -84,12 +84,12 @@ unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 		/* print udp data */
 		//printk("<1>source : %u \t dest : %u\n %s\n", source, dest, data);
 
-		/*for(i = 0 ; ; i++ ) {
+		for(i = 0 ; ; i++ ) {
 			if( data[i] == 0 )
 				break;
 		}
 
-		printk("NFmod:source[%u]dest[%u]datalen[%u]\n", source, dest, i);*/
+		printk("NFmod:source[%u]dest[%u]datalen[%u]\n", source, dest, i);
 
 		//packet_buff_index++;
 
