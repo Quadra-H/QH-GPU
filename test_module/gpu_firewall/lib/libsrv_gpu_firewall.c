@@ -89,15 +89,12 @@ int gpu_firewall_launch(struct qhgpu_service_request *sr)
 	clReleaseMemObject(fw_data.mem_obj);*/
 
 	if( off_flag == 0 ) {
-		printf("packet_poll on s\n");
 		system("./packet_poll &");
-		printf("packet_poll on e\n");
 		off_flag++;
 	}
 	else {
-		printf("packet_poll off s\n");
-		system("./killall packet_poll");
-		printf("packet_poll off e\n");
+		system("killall packet_poll");
+		off_flag = 0;
 	}
 
 	return 0;
