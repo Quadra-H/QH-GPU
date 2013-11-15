@@ -6,4 +6,4 @@ all:
 	$(if $(BUILD_DIR), cp packet_poll $(BUILD_DIR)/ )
 	
 clean:
-	rm -f *.o *.so a.out
+	rm -f *.o *.so packet_poll
