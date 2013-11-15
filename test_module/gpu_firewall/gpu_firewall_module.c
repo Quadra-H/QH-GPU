@@ -17,6 +17,9 @@
 #include <asm/uaccess.h>
 
 #include "myprotocol.h"
+
+#include "../../qhgpu/qhgpu.h"
+
 #define DROP_NAME "drop"
 #define DROP_MAJOR 240
 
@@ -29,6 +32,8 @@ struct sk_buff *sock_buff;
 struct file_operations drop_fops;
 
 void add_addr(const char*);
+
+struct qhgpu_request *req;
 
 /* open() system call */
 int drop_open(struct inode *inode, struct file *filp) {
@@ -67,11 +72,11 @@ unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 		const struct net_device *in, const struct net_device *out,
 		int (*okfn)(struct sk_buff*)) {
 
-	int i;
-	char *data;
-	struct iphdr *iph = ip_hdr(skb); /* ip header*/
-	unsigned long saddr = 0, daddr = 0; /* ip address */
-	unsigned short source = 0, dest = 0; /* port number */
+	//int i;
+	//char *data;
+	struct iphdr *iph = ip_hdr(skb); // ip header
+	/*unsigned long saddr = 0, daddr = 0; // ip address
+	unsigned short source = 0, dest = 0; // port number
 	//tcph, udph is apart from iph 20byte(size of(struct iphdr));
 	struct tcphdr *tcph = (struct tcphdr*) ((char*) iph + sizeof(struct iphdr));
 	struct udphdr *udph = (struct udphdr*) ((char*) iph + sizeof(struct iphdr));
@@ -79,24 +84,21 @@ unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 
 	//time val
 	struct timeval t0, t1;
-	long tt;
+	long tt;*/
 
 	//time stamp
 	//do_gettimeofday(&t0);
 
 	//http port number : 80
 	//get source and dest ip from iph
-	saddr = iph->saddr;
+
+	/*saddr = iph->saddr;
 	daddr = iph->daddr;
 	//get source and dest port from tcph
 	source = htons(tcph->source);
 	dest = htons(tcph->dest);
 
 	if (iph->protocol == IPPROTO_UDP) {
-		data = (char*) udph + sizeof(*udph);
-		/* print udp data */
-		//printk("<1>source : %u \t dest : %u\n %s\n", source, dest, data);
-
 		printk("GFmod:UDP saddr[");
 		print_ip(saddr);
 		printk("]raddr[");
@@ -107,7 +109,6 @@ unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 		return NF_QUEUE;
 	}
 	else if(iph->protocol == IPPROTO_TCP){
-
 		printk("GFmod:TCP saddr[");
 		print_ip(saddr);
 		printk("]raddr[");
@@ -116,6 +117,9 @@ unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 		printk("GFmod:TCP sport[%u]\tdport[%u]\n", source, dest);
 
 		return NF_QUEUE;
+	}*/
+	if( iph->protocol == IPPROTO_TCP || iph->protocol == IPPROTO_UDP ) {
+		return NF_QUEUE;
 	}
 
 	return NF_ACCEPT;
@@ -123,25 +127,33 @@ unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 	//do_gettimeofday(&t1);
 	//tt = 1000000*(t1.tv_sec-t0.tv_sec) + ((long)(t1.tv_usec) - (long)(t0.tv_usec));
 	//printk("main hook time: %10lu MS\n", tt);
-
-	/*for (i = 0; i < filter_addr_cnt; i++) {
-		if (saddr == filter_addr[i]) {
-			// ip drop
-			return NF_DROP;
-		}
-	}
-	if (source == http) {
-		return NF_DROP;
-	}*/
-	//http port Drop
-	//return NF_ACCEPT;
-
-	//todo : buff count 가 차거나 일정 시간 이상 경과 시
-	//qhgpu sync or async call 호출
-
 }
 
-int init_module() {
+static int gpu_firewall_module_callback(struct qhgpu_request *req) {
+	//req->out have return data
+	struct completion *c;
+
+	printk("[gpu firewall kernel module]callback start.\n");
+
+	c = (struct completion*)req->kdata;
+	complete(c);
+
+	return 0;
+}
+
+int init_module(void) {
+	printk("[gpu firewall kernel module]minit\n");
+
+	req = qhgpu_alloc_request( 0, "gpu_firewall_service");
+	if (!req) {
+		printk("request null\n");
+		return 0;
+	}
+
+	req->callback = gpu_firewall_module_callback;
+
+	qhgpu_call_sync(req);
+
 	drop_fops.owner = THIS_MODULE;
 	drop_fops.open = drop_open;
 	drop_fops.release = drop_release;
@@ -153,13 +165,22 @@ int init_module() {
 	nf_register_hook(&netfilter_ops);
 	//모듈등록
 	register_chrdev(DROP_MAJOR, DROP_NAME, &drop_fops);
+
+
+	printk("[gpu firewall kernel module]minit end.\n");
+
 	return 0;
 }
 
-void cleanup_module() {
+void cleanup_module(void) {
+
+	qhgpu_call_sync(req);
+
 	nf_unregister_hook(&netfilter_ops);
 	//모듈해제
 	unregister_chrdev(DROP_MAJOR, DROP_NAME);
+
+	printk("[gpu firewall kernel module]mexit\n");
 }
 
 unsigned long inet_aton(const char * str) {
@@ -186,3 +207,4 @@ void add_addr(const char *addr) {
 	printk("<1> %s(%lu) drop added! \n", addr, filter_addr[filter_addr_cnt]);
 }
 
+MODULE_LICENSE("GPL");
