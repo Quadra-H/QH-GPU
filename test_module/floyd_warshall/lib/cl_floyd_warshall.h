@@ -12,6 +12,8 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#define IP_BASE (0x11111111)
+
 cl_int init_floyd_warshall_gpu(cl_device_id* device_id, cl_context* context, cl_command_queue* command_queue, cl_program* program, cl_kernel* kernel);
 
 cl_int run_floyd_warshall_gpu(cl_context* context, cl_command_queue* command_queue, cl_kernel* kernel, cl_mem* mem_obj, void* data, const unsigned int mat_size);
