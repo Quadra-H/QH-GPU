@@ -36,6 +36,8 @@ cl_int init_gpu_firewall(cl_device_id* device_id, cl_context* context, cl_comman
 	ret |= res;
 	// Build the program
 	ret |= clBuildProgram((*program), 1, device_id, NULL, NULL, NULL);
+	if(ret != CL_SUCCESS) printf("bp err");
+
 
 	//CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE CL_QUEUE_PROFILING_ENABLE
 	(*command_queue) = clCreateCommandQueue((*context), (*device_id), CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &res);
