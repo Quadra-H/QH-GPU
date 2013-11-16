@@ -42,7 +42,7 @@
 
 struct gpu_firewall_data {
 	cl_context context;
-	cl_device_id device_id;
+	cl_device_id* device_id;
 	cl_command_queue command_queue;
 	cl_program program;
 	cl_kernel kernel;
@@ -62,14 +62,20 @@ int gpu_firewall_cs(struct qhgpu_service_request *sr) {
 
 
 int gpu_firewall_launch(struct qhgpu_service_request *sr) {
+	printf("[libsrv_gpu_firewall] Info: gpu_firewall_launch\n");
+
 	if( off_flag == 0 ) {
+		printf("[libsrv_gpu_firewall] Info: packet_pool on\n");
 		system("./packet_poll &");
 		off_flag++;
 	}
 	else {
+		printf("[libsrv_gpu_firewall] Info: packet_pool off\n");
 		system("killall packet_poll");
 		off_flag = 0;
 	}
+
+	printf("[libsrv_gpu_firewall] Info: gpu_firewall_launch end\n");
 
 	return 0;
 }
@@ -91,9 +97,9 @@ int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*), cl_cont
 	printf("[libsrv_gpu_firewall] Info: init libsrv gpu firewall.\n");
 
 	fw_data.context = context;
-	fw_data.device_id = (*device_id);
+	fw_data.device_id = device_id;
 
-	ret = init_gpu_firewall(&(fw_data.device_id), &context, &(fw_data.command_queue), &(fw_data.program), &(fw_data.kernel));
+	ret = init_gpu_firewall(fw_data.device_id, &context, &(fw_data.command_queue), &(fw_data.program), &(fw_data.kernel));
 	if( ret != CL_SUCCESS) {
 		printf("init_gpu_firewall_gpu error.\n");
 		return 1;
