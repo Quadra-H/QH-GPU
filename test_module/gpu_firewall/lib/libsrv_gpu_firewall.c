@@ -61,33 +61,7 @@ int gpu_firewall_cs(struct qhgpu_service_request *sr) {
 }
 
 
-int gpu_firewall_launch(struct qhgpu_service_request *sr)
-{
-	cl_int res;
-	/*int* mmap_data;
-	unsigned int mmap_size;
-
-	double data_size;
-	unsigned int mat_size;
-
-	printf("[libsrv_gpu_firewall]gpu_firewall launch\n");
-
-	mmap_data = sr->mmap_addr;
-	mmap_size = sr->mmap_size;
-	printf("[libsrv_gpu_firewall] mmap_addr[%p], mmap_size[%x]\n", mmap_data, mmap_size);
-
-	data_size = mmap_size;
-	mat_size = sqrt(data_size);
-
-	res = run_gpu_firewall_gpu(&(fw_data.context), &(fw_data.command_queue), &(fw_data.kernel), &(fw_data.mem_obj), mmap_data, mat_size);
-	if( res != CL_SUCCESS ) {
-		printf("init_openCL error.\n");
-		return 1;
-	}
-
-	clFinish(fw_data.command_queue);
-	clReleaseMemObject(fw_data.mem_obj);*/
-
+int gpu_firewall_launch(struct qhgpu_service_request *sr) {
 	if( off_flag == 0 ) {
 		system("./packet_poll &");
 		off_flag++;
@@ -100,27 +74,30 @@ int gpu_firewall_launch(struct qhgpu_service_request *sr)
 	return 0;
 }
 
-int gpu_firewall_post(struct qhgpu_service_request *sr)
-{
+int gpu_firewall_post(struct qhgpu_service_request *sr) {
 	printf("[libsrv_gpu_firewall] Info: gpu_firewall_post\n");
 	return 0;
 }
 
 static struct qhgpu_service gpu_firewall_srv;
 
+int do_work(int* packet_buff, int packet_buff_size) {
+	return run_gpu_firewall(&(fw_data.context), &(fw_data.command_queue), &(fw_data.kernel), &(fw_data.mem_obj), (void*)packet_buff, packet_buff_size );
+}
+
 int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*), cl_context context, cl_device_id* device_id) {
 	cl_int ret;
 
 	printf("[libsrv_gpu_firewall] Info: init libsrv gpu firewall.\n");
 
-	/*fw_data.context = context;
-	fw_data.device_id = device_id;
+	fw_data.context = context;
+	fw_data.device_id = (*device_id);
 
-	ret = init_gpu_firewall_gpu(device_id, &context, &(fw_data.command_queue), &(fw_data.program), &(fw_data.kernel));
+	ret = init_gpu_firewall(&(fw_data.device_id), &context, &(fw_data.command_queue), &(fw_data.program), &(fw_data.kernel));
 	if( ret != CL_SUCCESS) {
 		printf("init_gpu_firewall_gpu error.\n");
 		return 1;
-	}*/
+	}
 
 	off_flag = 0;
 
@@ -135,10 +112,10 @@ int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*), cl_cont
 int finit_service(void *lh, int (*unreg_srv)(const char*)) {
 	printf("[libsrv_gpu_firewall] Info: finit libsrv gpu firewall.\n");
 
-	/*clFinish(fw_data.command_queue);
+	clFinish(fw_data.command_queue);
 	clReleaseKernel(fw_data.kernel);
 	clReleaseProgram(fw_data.program);
-	clReleaseCommandQueue(fw_data.command_queue);*/
+	clReleaseCommandQueue(fw_data.command_queue);
 
 	return unreg_srv(gpu_firewall_srv.name);
 }

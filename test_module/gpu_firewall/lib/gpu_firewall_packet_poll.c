@@ -14,6 +14,8 @@
 #include <sys/time.h>
 //#include <openssl/md5.h>
 
+#include "cl_gpu_firewall.h"
+
 #define IFNAMSIZ 16
 
 #define BUFSIZE 2048
@@ -28,14 +30,11 @@
 #define TCP 6
 #define UDP 17
 
-struct u_packet {
-	int id;
-	unsigned char payload[576];
-	//unsigned char * payload;
-	int payload_len;
-};
-
-struct u_packet u_packet_buff[16];
+int id_buff[256];
+int sip_buff[256];
+int dip_buff[256];
+unsigned short sport_buff[256];
+unsigned short dport_buff[256];
 unsigned int u_packet_buff_index;
 long first_rv_time;
 
@@ -73,7 +72,7 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 
 	char *show_data;
 
-	printf("NFlibsrv:show_packet len[%d]\n", datalen);
+	//printf("NFlibsrv:show_packet len[%d]\n", datalen);
 
 	iphdrs = (struct iphdr *) dgram;
 
@@ -81,12 +80,17 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 	case TCP:
 		tcphdrs = (struct tcphdrs *) (dgram + sizeof(struct iphdr));
 
-		printf("TCP saddr[");
+		sip_buff[u_packet_buff_index] = iphdrs->saddr;
+		dip_buff[u_packet_buff_index] = iphdrs->daddr;
+		sport_buff[u_packet_buff_index] = htons(tcphdrs->source);
+		dport_buff[u_packet_buff_index] = htons(tcphdrs->dest);
+
+		/*printf("TCP saddr[");
 		print_ip(iphdrs->saddr);
 		printf("]raddr[");
 		print_ip(iphdrs->daddr);
 		printf("]\n");
-		printf("TCP port sport : %u \t dport : %u\n", htons(tcphdrs->source), htons(tcphdrs->dest));
+		printf("TCP port sport : %u \t dport : %u\n", htons(tcphdrs->source), htons(tcphdrs->dest));*/
 
 		/*
 		 tcphdrs = (struct tcphdr *)(dgram + 4 * iphdrs->ihl);
@@ -98,13 +102,18 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 	case UDP:
 		udphdrs = (struct udphdr *) (dgram + sizeof(struct iphdr));
 
-		printf("UDP saddr[");
+		sip_buff[u_packet_buff_index] = iphdrs->saddr;
+		dip_buff[u_packet_buff_index] = iphdrs->daddr;
+		sport_buff[u_packet_buff_index] = htons(udphdrs->source);
+		dport_buff[u_packet_buff_index] = htons(udphdrs->dest);
+
+		/*printf("UDP saddr[");
 		print_ip(iphdrs->saddr);
 		printf("]raddr[");
 		print_ip(iphdrs->daddr);
 		printf("]\n");
 		printf("UDP port sport : %u \t dport : %u\n", htons(udphdrs->source), htons(udphdrs->dest));
-		printf("UDP size : %u\n", htons(udphdrs->len));
+		printf("UDP size : %u\n", htons(udphdrs->len));*/
 
 		//show_data = (char *) (dgram + datalen - sizeof(struct iphdr) - sizeof(struct udphdr));
 
@@ -131,6 +140,7 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	struct iphdr *iph = NULL;
 	struct timeval timestamp;
 	unsigned char *payload;
+	int payload_len;
 	int ret;
 	u_int32_t POLICY;
 
@@ -159,31 +169,37 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	snprintf(q_pkt.physoutdev, sizeof(q_pkt.physoutdev), "*");
 #endif
 
-	ret = nfq_get_timestamp(nfa, &timestamp);
+	/*ret = nfq_get_timestamp(nfa, &timestamp);
 	if (ret == 0)
 		q_pkt.timestamp = timestamp.tv_sec;
 	else
-		q_pkt.timestamp = time(NULL);
+		q_pkt.timestamp = time(NULL);*/
 
 	ph = nfq_get_msg_packet_hdr(nfa);
 
 	if (ph) {
 		id = ntohl(ph->packet_id);
 
-		u_packet_buff[u_packet_buff_index].id = id;
-		u_packet_buff[u_packet_buff_index].payload_len = nfq_get_payload(nfa, &payload);
-		memcpy(u_packet_buff[u_packet_buff_index].payload, payload, u_packet_buff[u_packet_buff_index].payload_len);
+		id_buff[u_packet_buff_index] = id;
+		payload_len = nfq_get_payload(nfa, &payload);
+
+		show_packet(payload, payload_len);
+
 		u_packet_buff_index++;
 
 		gettimeofday (&tv, NULL);
 		rv_time = (tv.tv_sec * 1000 + tv.tv_usec / 1000);
 
-		if( u_packet_buff_index == 8 || rv_time - first_rv_time > 1000 /*1000ms*/ ) {
-			for( i = 0 ; i < u_packet_buff_index ; i++ ) {
-				POLICY = show_packet(u_packet_buff[i].payload, u_packet_buff[i].payload_len);
+		if( u_packet_buff_index == 256 || rv_time - first_rv_time > 1000 /*1000ms*/ ) {
+			do_work(dip_buff, u_packet_buff_index - 1);
 
-				POLICY = NF_ACCEPT;
-				nfq_set_verdict(qh, u_packet_buff[i].id, POLICY, 0, NULL);
+			for( i = 0 ; i < u_packet_buff_index ; i++ ) {
+				if( dip_buff == 0 ) {
+					nfq_set_verdict(qh, id_buff[i], NF_ACCEPT, 0, NULL);
+				}
+				else {
+					nfq_set_verdict(qh, id_buff[i], NF_DROP, 0, NULL);
+				}
 			}
 
 			u_packet_buff_index = 0;
@@ -226,11 +242,11 @@ static int work_do(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	snprintf(q_pkt.physoutdev, sizeof(q_pkt.physoutdev), "*");
 #endif
 
-	ret = nfq_get_timestamp(nfa, &timestamp);
+	/*ret = nfq_get_timestamp(nfa, &timestamp);
 	if (ret == 0)
 		q_pkt.timestamp = timestamp.tv_sec;
 	else
-		q_pkt.timestamp = time(NULL);
+		q_pkt.timestamp = time(NULL);*/
 
 	ph = nfq_get_msg_packet_hdr(nfa);
 	/*if (ph) {
