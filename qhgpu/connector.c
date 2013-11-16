@@ -593,7 +593,7 @@ int qc_get_next_service_request(void) {
 	pfd.events = POLLIN;
 	pfd.revents = 0;
 
-	printf("qc_get_next_service_request start!!! \n");
+	//printf("qc_get_next_service_request start!!! \n");
 
 	err = poll(&pfd, 1, list_empty(&all_reqs) ? -1 : 0);/// if list is empty polling (timeout -1)
 														/// qhgpudev.reqq poll_wait interrupted by call
