@@ -152,7 +152,7 @@ int init_module(void) {
 
 	req->callback = gpu_firewall_module_callback;
 
-	qhgpu_call_sync(req);
+
 
 	drop_fops.owner = THIS_MODULE;
 	drop_fops.open = drop_open;
@@ -166,6 +166,8 @@ int init_module(void) {
 	//모듈등록
 	register_chrdev(DROP_MAJOR, DROP_NAME, &drop_fops);
 
+	qhgpu_call_async(req);
+
 
 	printk("[gpu firewall kernel module]minit end.\n");
 
@@ -174,7 +176,7 @@ int init_module(void) {
 
 void cleanup_module(void) {
 
-	qhgpu_call_sync(req);
+	qhgpu_call_async(req);
 
 	nf_unregister_hook(&netfilter_ops);
 	//모듈해제

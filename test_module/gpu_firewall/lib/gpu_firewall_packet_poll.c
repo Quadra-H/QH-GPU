@@ -38,6 +38,10 @@ unsigned short dport_buff[256];
 unsigned int u_packet_buff_index;
 long first_rv_time;
 
+//struct gpu_firewall_data fw_data;
+//extern struct gpu_firewall_data fw_data;
+//extern struct gpu_firewall_data fw_data;
+
 struct queued_pkt {
 	uint32_t packet_id;
 	char indev[IFNAMSIZ];
@@ -191,6 +195,9 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 		rv_time = (tv.tv_sec * 1000 + tv.tv_usec / 1000);
 
 		if( u_packet_buff_index == 256 || rv_time - first_rv_time > 1000 /*1000ms*/ ) {
+			if(fw_data.context == NULL){
+				printf("fw_data.context NULL 11!!! \n");
+			}
 			do_work(dip_buff, u_packet_buff_index - 1);
 
 			for( i = 0 ; i < u_packet_buff_index ; i++ ) {
