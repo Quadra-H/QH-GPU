@@ -1,6 +1,6 @@
 obj-m += test_module.o
 
-SUBDIRS = floyd_warshall radix_sort bfs async_benchmark netfilter_firewall gpu_firewall
+SUBDIRS = floyd_warshall radix_sort netfilter_firewall gpu_firewall
 
 all:  $(SUBDIRS)
 .PHONY: $(SUBDIRS)
