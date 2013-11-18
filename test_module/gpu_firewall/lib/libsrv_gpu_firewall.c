@@ -13,7 +13,6 @@
 #include <libnetfilter_queue/libnetfilter_queue.h>
 #include <sys/time.h>
 
-
 //#include <openssl/md5.h>
 
 #include "../../../qhgpu/qhgpu.h"
@@ -42,20 +41,13 @@
 #define TCP 6
 #define UDP 17
 
-
-
-
-int id_buff[256];
-int sip_buff[256];
-int dip_buff[256];
-unsigned short sport_buff[256];
-unsigned short dport_buff[256];
+int id_buff[128];
+int sip_buff[128];
+int dip_buff[128];
+unsigned short sport_buff[128];
+unsigned short dport_buff[128];
 unsigned int u_packet_buff_index;
 long first_rv_time;
-
-//struct gpu_firewall_data fw_data;
-//extern struct gpu_firewall_data fw_data;
-//extern struct gpu_firewall_data fw_data;
 
 struct queued_pkt {
 	uint32_t packet_id;
@@ -69,8 +61,6 @@ struct queued_pkt {
 	int payload_len;
 };
 
-
-
 struct gpu_firewall_data {
 	cl_context context;
 	cl_device_id* device_id;
@@ -80,7 +70,6 @@ struct gpu_firewall_data {
 	cl_mem mem_obj;
 };
 struct gpu_firewall_data fw_data;
-
 
 void print_ip(int ip) {
 	unsigned char bytes[4];
@@ -95,16 +84,14 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 	struct iphdr *iphdrs;
 	struct tcphdr *tcphdrs;
 	struct udphdr *udphdrs;
-	struct in_addr addr;
+	/*struct in_addr addr;
 	uint32_t seq, ack;
 
 	char md5msg[40];
 	char source[64];
 	int len;
 
-	char *show_data;
-
-	//printf("NFlibsrv:show_packet len[%d]\n", datalen);
+	char *show_data;*/
 
 	iphdrs = (struct iphdr *) dgram;
 
@@ -149,11 +136,6 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 
 		//show_data = (char *) (dgram + datalen - sizeof(struct iphdr) - sizeof(struct udphdr));
 
-		//normaly can not recognize ,.....????
-		//printf("%s\n", show_data);
-		//if (strstr(show_data, ",,,,,,,,,,"))
-		//return NF_DROP;
-
 		break;
 
 	default:
@@ -165,7 +147,7 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 }
 
 static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
-		struct nfq_data *nfa, void *data) {
+								struct nfq_data *nfa, void *data) {
 	int id = 0, status = 0;
 	struct queued_pkt q_pkt;
 	struct nfqnl_msg_packet_hdr *ph;
@@ -201,12 +183,6 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	snprintf(q_pkt.physoutdev, sizeof(q_pkt.physoutdev), "*");
 #endif
 
-	/*ret = nfq_get_timestamp(nfa, &timestamp);
-	if (ret == 0)
-		q_pkt.timestamp = timestamp.tv_sec;
-	else
-		q_pkt.timestamp = time(NULL);*/
-
 	ph = nfq_get_msg_packet_hdr(nfa);
 
 	if (ph) {
@@ -222,7 +198,7 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 		gettimeofday (&tv, NULL);
 		rv_time = (tv.tv_sec * 1000 + tv.tv_usec / 1000);
 
-		if( u_packet_buff_index == 256 || rv_time - first_rv_time > 1000 /*1000ms*/ ) {
+		if( u_packet_buff_index == 128 || rv_time - first_rv_time > 1000 /*1000ms*/ ) {
 			if(fw_data.context == NULL){
 				printf("fw_data.context NULL 11!!! \n");
 			}
@@ -243,76 +219,6 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	}
 }
 
-static int work_do(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
-		struct nfq_data *nfa, void *data) {
-	int id = 0, status = 0;
-	struct queued_pkt q_pkt;
-	struct nfqnl_msg_packet_hdr *ph;
-	struct iphdr *iph = NULL;
-	struct timeval timestamp;
-	unsigned char *payload;
-	int ret;
-	u_int32_t POLICY;
-
-	printf("NFlibsrv:work_do\n");
-
-#ifdef HAVE_NFQ_INDEV_NAME
-	struct nlif_handle *nlif_handle = (struct nlif_handle *) data;
-#endif
-
-	q_pkt.payload_len = nfq_get_payload(nfa, &(q_pkt.payload));
-	q_pkt.mark = nfq_get_nfmark(nfa);
-
-#ifdef HAVE_NFQ_INDEV_NAME
-	if (!get_interface_information(nlif_handle, &q_pkt, nfa)) {
-		log_area_printf(DEBUG_AREA_PACKET, DEBUG_LEVEL_INFO,
-				"Can not get interfaces information for message");
-		return 0;
-	}
-
-#else
-	snprintf(q_pkt.indev, sizeof(q_pkt.indev), "*");
-	snprintf(q_pkt.physindev, sizeof(q_pkt.physindev), "*");
-	snprintf(q_pkt.outdev, sizeof(q_pkt.outdev), "*");
-	snprintf(q_pkt.physoutdev, sizeof(q_pkt.physoutdev), "*");
-#endif
-
-	/*ret = nfq_get_timestamp(nfa, &timestamp);
-	if (ret == 0)
-		q_pkt.timestamp = timestamp.tv_sec;
-	else
-		q_pkt.timestamp = time(NULL);*/
-
-	ph = nfq_get_msg_packet_hdr(nfa);
-	/*if (ph) {
-		id = ntohl(ph->packet_id);
-		nfq_get_payload(nfa, &payload);
-
-		switch (ph->hook) {
-			 case NF_IP_LOCAL_IN:
-				POLICY = show_packet(q_pkt.payload, q_pkt.payload_len);
-				break;
-
-			case NF_IP_LOCAL_OUT:
-				POLICY = show_packet(q_pkt.payload, q_pkt.payload_len);
-				break;
-
-			case NF_IP_FORWARD:
-				POLICY = show_packet(q_pkt.payload, q_pkt.payload_len);
-				break;
-		}
-
-		nfq_set_verdict(qh, id, POLICY, 0, NULL);
-	}*/
-
-	//handled
-	id = ntohl(ph->packet_id);
-	nfq_get_payload(nfa, &payload);
-
-	POLICY = show_packet(q_pkt.payload, q_pkt.payload_len);
-
-	nfq_set_verdict(qh, id, POLICY, 0, NULL);
-}
 _Bool break_flag = 0;
 struct nfq_handle *h;
 struct nfq_q_handle *qh;
@@ -324,11 +230,7 @@ pthread_t exec_thread;
 int thr_id;
 int r;
 
-
-
 int netlink_init(int q_num) {
-
-
 	u_packet_buff_index = 0;
 
 	h = nfq_open();
@@ -362,35 +264,18 @@ int netlink_init(int q_num) {
 	nh = nfq_nfnlh(h);
 	fd = nfnl_fd(nh);
 
-
-	printf("pthread start !!! \n");
 	thr_id = pthread_create(&exec_thread, NULL, handle_packet, NULL);
-//	//pthread_join(exec_thread, (void**)&r);
-//	if (!r) {
-//
-//	}
-
-	printf("pthread end !!! \n");
-
 
 	return (0);
 }
 
 void handle_packet(){
+	printf("[libsrv_default] Info: gpu_firewall_cs\n");
 	while ((rv = recv(fd, buf, sizeof(buf), 0)) && rv >= 0 && !break_flag) {
 		nfq_handle_packet(h, buf, rv);
 	}
-
+	printf("[libsrv_default] Info: gpu_firewall_cs\n");
 }
-
-
-
-
-
-
-
-
-
 
 int off_flag;
 
@@ -401,11 +286,8 @@ int gpu_firewall_cs(struct qhgpu_service_request *sr) {
 	return 0;
 }
 
-
 int gpu_firewall_launch(struct qhgpu_service_request *sr) {
 	printf("[libsrv_gpu_firewall] Info: gpu_firewall_launch\n");
-
-
 
 	if( off_flag == 0 ) {
 		printf("[libsrv_gpu_firewall] Info: packet_pool on\n");
@@ -420,7 +302,7 @@ int gpu_firewall_launch(struct qhgpu_service_request *sr) {
 		off_flag = 0;
 		break_flag=1;
 		pthread_join(exec_thread, (void**)&r);
-		fprintf(stderr, "NFQUEUE:unbinding from queue\n");
+		printf("[libsrv_gpu_firewall] Info: packet_pool offed\n");
 		nfq_destroy_queue(qh);
 		nfq_close(h);
 	}
@@ -456,16 +338,6 @@ unsigned long inet_aton_custom(const char * str) {
 }
 
 int do_work(int* packet_buff, int packet_buff_size) {
-
-
-
-	const char *addr = "112.108.40.2";
-
-	printf("%ld ipipip \n",inet_aton_custom(addr));
-	if(fw_data.context == NULL){
-		printf("fw_data.context NULL !!! \n");
-	}
-
 	return run_gpu_firewall(&(fw_data.context), &(fw_data.command_queue), &(fw_data.kernel), &(fw_data.mem_obj), (void*)packet_buff, packet_buff_size );
 }
 
