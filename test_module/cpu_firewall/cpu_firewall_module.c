@@ -2136,8 +2136,8 @@ unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 		return NF_QUEUE;
 	}*/
 	if( iph->protocol == IPPROTO_TCP || iph->protocol == IPPROTO_UDP ) {
-		if( packet_id / 1000 > 0 ) {
-			printk("[cpu firewall kernel module]perfo time: [%10lu]usec\n", perfo_time);
+		if( packet_id / 1024 > 0 ) {
+			printk("[cpu firewall kernel module]perfo time: [%10lu]usec\n", perfo_time>>3);
 			perfo_time = 0;
 			packet_id = 0;
 		}
@@ -2150,7 +2150,7 @@ unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 			return NF_DROP;
 		}*/
 
-		for( i = 0 ; i < IPTSIZE ; i++ ) {
+		for( i = 0 ; i < 2048 ; i++ ) {
 			if( saddr == inet_aton(bad_address[i]) ) {
 				do_gettimeofday(&t1);
 				perfo_time += 1000000*(t1.tv_sec-t0.tv_sec) + ((long)(t1.tv_usec) - (long)(t0.tv_usec));

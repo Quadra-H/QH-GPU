@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "bad_ip_address.h"
 #include "cl_gpu_firewall.h"
-
-#define IP_BASE (0x11111111)
 
 /********************************
  * init gpu firewall by gpu
@@ -47,10 +46,7 @@ cl_int init_gpu_firewall(cl_device_id* device_id, cl_context* context, cl_comman
 	return ret;
 }
 
-cl_int run_gpu_firewall(cl_context* context, cl_command_queue* command_queue, cl_kernel* kernel, cl_mem* packet_buff_mem_obj, void* packet_buff,unsigned int packet_buff_size) {
-	int ip_base;
-	ip_base = IP_BASE;
-
+cl_int run_gpu_firewall(cl_context* context, cl_command_queue* command_queue, cl_kernel* kernel, cl_mem* packet_buff_mem_obj, cl_mem* packet_buff_mem_obj2, void* packet_buff, unsigned int packet_buff_size) {
 	cl_int ret = 0;
 	cl_int res = 0;
 
@@ -63,23 +59,25 @@ cl_int run_gpu_firewall(cl_context* context, cl_command_queue* command_queue, cl
 	//size_t localThreads[2] = {16, 8};
 	size_t localThreads[2] = {16,8};
 
-
-
-
 	(*packet_buff_mem_obj) = clCreateBuffer((*context), CL_MEM_READ_WRITE, 128*sizeof(int), NULL, &res);
 	ret |= res;
 
+	(*packet_buff_mem_obj2) = clCreateBuffer((*context), CL_MEM_READ_WRITE, 2048*sizeof(unsigned long), NULL, &res);
+	ret |= res;
+
 	ret |= clSetKernelArg((*kernel), 0, sizeof(cl_mem), packet_buff_mem_obj);
-	ret |= clSetKernelArg((*kernel), 1, sizeof(int), &packet_buff_size);
-	ret |= clSetKernelArg((*kernel), 2, sizeof(int), &ip_base);
+	ret |= clSetKernelArg((*kernel), 1, sizeof(cl_mem), packet_buff_mem_obj2);
+	ret |= clSetKernelArg((*kernel), 2, sizeof(int), &packet_buff_size);
 
 	//blocking_wirte FALSE
 	ret |= clEnqueueWriteBuffer((*command_queue), (*packet_buff_mem_obj), CL_FALSE, 0, 128*sizeof(int), packet_buff, 0, NULL, NULL);
+	ret |= clEnqueueWriteBuffer((*command_queue), (*packet_buff_mem_obj2), CL_FALSE, 0, 2048*sizeof(unsigned long), bad_ip_address, 0, NULL, NULL);
 	ret |= clEnqueueNDRangeKernel((*command_queue), (*kernel), 2, NULL, globalThreads, localThreads, 0, NULL, NULL);
 	ret |= clEnqueueReadBuffer((*command_queue), (*packet_buff_mem_obj), CL_FALSE, 0, 128*sizeof(int), packet_buff, 0, NULL, NULL);
 
 	clFinish((*command_queue));
 	clReleaseMemObject((*packet_buff_mem_obj));
+	clReleaseMemObject((*packet_buff_mem_obj2));
 
 	return ret;
 }

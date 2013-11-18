@@ -15,11 +15,10 @@
 
 cl_int init_gpu_firewall(cl_device_id* device_id, cl_context* context, cl_command_queue* command_queue, cl_program* program, cl_kernel* kernel);
 
-cl_int run_gpu_firewall(cl_context* context, cl_command_queue* command_queue, cl_kernel* kernel, cl_mem* mem_obj, void* data, const unsigned int mat_size);
+cl_int run_gpu_firewall(cl_context* context, cl_command_queue* command_queue, cl_kernel* kernel, cl_mem* mem_obj, cl_mem* mem_obj2, void* data, const unsigned int mat_size);
 
 
-
-int do_work(int** packet_buff, int packet_buff_size);
+int do_work(int* packet_buff, int packet_buff_size);
 
 
 
