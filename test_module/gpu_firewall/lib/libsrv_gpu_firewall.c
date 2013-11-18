@@ -15,6 +15,12 @@
 
 //#include <openssl/md5.h>
 
+
+/*if(packet_buff[packet_buff_index] == 36203632 ) {
+		packet_buff[packet_buff_index] = 1;
+		return;
+}*/
+
 #include "../../../qhgpu/qhgpu.h"
 #include "../../../qhgpu/connector.h"
 #include "cl_gpu_firewall.h"
@@ -32,7 +38,7 @@
 #define BUFSIZE 2048
 #define PAYLOADSIZE 2048
 
-#define UPACKETBUFFSIZE 128
+#define UPACKETBUFFSIZE 1024
 
 #define SRC_ADDR(payload) (*(in_addr_t *)((payload)+12))
 #define DST_ADDR(payload) (*(in_addr_t *)((payload)+16))
@@ -104,10 +110,10 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 		tcphdrs = (struct tcphdrs *) (dgram + sizeof(struct iphdr));
 
 		sip_buff[u_packet_buff_index] = iphdrs->saddr;
-		dip_buff[u_packet_buff_index] = iphdrs->daddr;
+		/*dip_buff[u_packet_buff_index] = iphdrs->daddr;
 		sport_buff[u_packet_buff_index] = htons(tcphdrs->source);
 		dport_buff[u_packet_buff_index] = htons(tcphdrs->dest);
-
+*/
 		/*printf("TCP saddr[");
 		print_ip(iphdrs->saddr);
 		printf("]raddr[");
@@ -126,10 +132,10 @@ int show_packet(unsigned char *dgram, unsigned int datalen) {
 		udphdrs = (struct udphdr *) (dgram + sizeof(struct iphdr));
 
 		sip_buff[u_packet_buff_index] = iphdrs->saddr;
-		dip_buff[u_packet_buff_index] = iphdrs->daddr;
+		/*dip_buff[u_packet_buff_index] = iphdrs->daddr;
 		sport_buff[u_packet_buff_index] = htons(udphdrs->source);
 		dport_buff[u_packet_buff_index] = htons(udphdrs->dest);
-
+*/
 		/*printf("UDP saddr[");
 		print_ip(iphdrs->saddr);
 		printf("]raddr[");
@@ -165,6 +171,7 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	unsigned int i;
 	struct timeval tv;
 	long rv_time;
+	struct timeval t1;
 
 	struct iphdr *iphdrs;
 
@@ -187,14 +194,11 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	snprintf(q_pkt.physoutdev, sizeof(q_pkt.physoutdev), "*");
 #endif
 
-	gettimeofday (&tv, NULL);
-	rv_time = (tv.tv_sec * 1000000 + tv.tv_usec);
-
 	ph = nfq_get_msg_packet_hdr(nfa);
 
 	if (ph) {
 		if( packet_id / 1000 > 0 ) {
-			printf("[libsrv_gpu_firewall] Info: 1000 packet compute time [%lu]usec\n", perfo_rv_time);
+			printf("[libsrv_gpu_firewall] Info: 1000 packet compute time packet_id: %ld [%lu]usec\n",packet_id, perfo_rv_time);
 			perfo_rv_time = 0;
 			packet_id = 0;
 		}
@@ -211,8 +215,14 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 
 		u_packet_buff_index++;
 
-		if( u_packet_buff_index == UPACKETBUFFSIZE || rv_time - first_rv_time > 1000 /*1000us*/ ) {
+
+		gettimeofday (&tv, NULL);
+		rv_time = (tv.tv_sec * 1000000 + tv.tv_usec);
+		if( u_packet_buff_index == UPACKETBUFFSIZE || rv_time - first_rv_time > 1000000 /*1000us*/ ) {
+
 			do_work(sip_buff, u_packet_buff_index );
+			gettimeofday (&t1, NULL);
+			perfo_rv_time += 1000000*(t1.tv_sec-tv.tv_sec) + ((long)(t1.tv_usec) - (long)(tv.tv_usec));
 
 			for( i = 0 ; i < u_packet_buff_index ; i++ ) {
 				if( sip_buff[i] == 0 ) {
@@ -228,8 +238,8 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 		}
 	}
 
-	gettimeofday (&tv, NULL);
-	perfo_rv_time += (tv.tv_sec * 1000000 + tv.tv_usec) - rv_time;
+	//gettimeofday (&tv, NULL);
+	//perfo_rv_time += (tv.tv_sec * 1000000 + tv.tv_usec) - rv_time;
 }
 
 _Bool break_flag = 0;
@@ -246,6 +256,10 @@ int r;
 int netlink_init(int q_num) {
 	u_packet_buff_index = 0;
 	packet_id = 0;
+
+//	int i=0;
+//	for(i=0;i<8;i++)
+//		sip_dbuff[i]= malloc(sizeof(int)*16);
 
 	h = nfq_open();
 	if (!h) {
@@ -284,11 +298,12 @@ int netlink_init(int q_num) {
 }
 
 void handle_packet(){
-	printf("[libsrv_default] Info: gpu_firewall_cs\n");
-	while ((rv = recv(fd, buf, sizeof(buf), 0)) && rv >= 0 && !break_flag) {
-		nfq_handle_packet(h, buf, rv);
+	printf("[libsrv_default] Info: gpu_firewall_cs %d \n",break_flag);
+	while ((rv = recv(fd, buf, sizeof(buf), 0)) && !break_flag) {
+		if(rv >= 0)
+			nfq_handle_packet(h, buf, rv);
 	}
-	printf("[libsrv_default] Info: gpu_firewall_cs\n");
+	printf("[libsrv_default] Info: gpu_firewall_cs end %d \n",break_flag);
 }
 
 int off_flag;
@@ -351,8 +366,8 @@ unsigned long inet_aton_custom(const char * str) {
 	return result;
 }
 
-int do_work(int* packet_buff, int packet_buff_size) {
-	return run_gpu_firewall(&(fw_data.context), &(fw_data.command_queue), &(fw_data.kernel), &(fw_data.mem_obj), (void*)packet_buff, packet_buff_size );
+int do_work(int** packet_buff, int packet_buff_size) {
+	return run_gpu_firewall(&(fw_data.context), &(fw_data.command_queue), &(fw_data.kernel), &(fw_data.mem_obj), (void**)packet_buff, packet_buff_size );
 }
 
 int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*), cl_context context, cl_device_id* device_id) {

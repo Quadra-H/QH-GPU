@@ -85,7 +85,7 @@ unsigned int main_hook(unsigned int hooknum, struct sk_buff *skb,
 	}*/
 	if( iph->protocol == IPPROTO_TCP || iph->protocol == IPPROTO_UDP ) {
 		if( packet_id / 1000 > 0 ) {
-			printk("[cpu firewall kernel module]perfo time: [%10lu]usec\n", perfo_time);
+			printk("[cpu firewall kernel module] Info: 1000 packet compute time packet_id: %ld [%lu]usec\n",packet_id, perfo_time);
 			perfo_time = 0;
 			packet_id = 0;
 		}

@@ -176,10 +176,17 @@ int init_module(void) {
 
 void cleanup_module(void) {
 
+
+
 	qhgpu_call_sync(req);
+
 
 	printk("[gpu firewall kernel module]mexit 0\n");
 	nf_unregister_hook(&netfilter_ops);
+
+
+
+
 	//모듈해제
 	//unregister_chrdev(DROP_MAJOR, DROP_NAME);
 

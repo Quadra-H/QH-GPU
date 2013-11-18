@@ -57,13 +57,16 @@ cl_int run_gpu_firewall(cl_context* context, cl_command_queue* command_queue, cl
 	//printf("packet_buff_size : %d \n",packet_buff_size );
 	//packet_buff_size++;
 	//packet_buff_size= 128;
-	size_t globalThreads[1] = {packet_buff_size};
+	size_t globalThreads[2] = {32,32};
 
 	//double size of wave front (128)
 	//size_t localThreads[2] = {16, 8};
-	size_t localThreads[1] = {64};
+	size_t localThreads[2] = {16,8};
 
-	(*packet_buff_mem_obj) = clCreateBuffer((*context), CL_MEM_READ_WRITE, packet_buff_size*sizeof(int), NULL, &res);
+
+
+
+	(*packet_buff_mem_obj) = clCreateBuffer((*context), CL_MEM_READ_WRITE, 128*sizeof(int), NULL, &res);
 	ret |= res;
 
 	ret |= clSetKernelArg((*kernel), 0, sizeof(cl_mem), packet_buff_mem_obj);
@@ -71,9 +74,9 @@ cl_int run_gpu_firewall(cl_context* context, cl_command_queue* command_queue, cl
 	ret |= clSetKernelArg((*kernel), 2, sizeof(int), &ip_base);
 
 	//blocking_wirte FALSE
-	ret |= clEnqueueWriteBuffer((*command_queue), (*packet_buff_mem_obj), CL_FALSE, 0, packet_buff_size*sizeof(int), packet_buff, 0, NULL, NULL);
-	ret |= clEnqueueNDRangeKernel((*command_queue), (*kernel), 1, NULL, globalThreads, localThreads, 0, NULL, NULL);
-	ret |= clEnqueueReadBuffer((*command_queue), (*packet_buff_mem_obj), CL_FALSE, 0, packet_buff_size*sizeof(int), packet_buff, 0, NULL, NULL);
+	ret |= clEnqueueWriteBuffer((*command_queue), (*packet_buff_mem_obj), CL_FALSE, 0, 128*sizeof(int), packet_buff, 0, NULL, NULL);
+	ret |= clEnqueueNDRangeKernel((*command_queue), (*kernel), 2, NULL, globalThreads, localThreads, 0, NULL, NULL);
+	ret |= clEnqueueReadBuffer((*command_queue), (*packet_buff_mem_obj), CL_FALSE, 0, 128*sizeof(int), packet_buff, 0, NULL, NULL);
 
 	clFinish((*command_queue));
 	clReleaseMemObject((*packet_buff_mem_obj));

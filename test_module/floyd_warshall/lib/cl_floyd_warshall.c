@@ -53,7 +53,7 @@ cl_int init_floyd_warshall_gpu(cl_device_id* device_id, cl_context* context, cl_
 
 	fclose(fp);
 
-	// Create a program from the kernel source
+	// Create a program from the kerne16l source
 	(*program) = clCreateProgramWithSource((*context), /*num of file*/1, (const char **) &(source_str), (const size_t *) &(source_size), &res);
 	ret |= res;
 	// Build the program

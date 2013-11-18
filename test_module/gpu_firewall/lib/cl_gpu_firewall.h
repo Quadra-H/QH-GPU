@@ -19,7 +19,7 @@ cl_int run_gpu_firewall(cl_context* context, cl_command_queue* command_queue, cl
 
 
 
-int do_work(int* packet_buff, int packet_buff_size);
+int do_work(int** packet_buff, int packet_buff_size);
 
 
 
