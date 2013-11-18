@@ -51,6 +51,7 @@ static unsigned short dport_buff[UPACKETBUFFSIZE];
 static unsigned int u_packet_buff_index;
 static long first_rv_time;
 static long perfo_rv_time;
+static long packet_id;
 
 struct queued_pkt {
 	uint32_t packet_id;
@@ -187,17 +188,21 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 #endif
 
 	gettimeofday (&tv, NULL);
-	rv_time = (tv.tv_sec * 1000 + tv.tv_usec / 1000);
+	rv_time = (tv.tv_sec * 1000000 + tv.tv_usec);
 
 	ph = nfq_get_msg_packet_hdr(nfa);
 
 	if (ph) {
-		id = ntohl(ph->packet_id);
-
-		if( id % 1000 == 0 ) {
+		if( packet_id / 1000 > 0 ) {
 			printf("[libsrv_gpu_firewall] Info: 1000 packet compute time [%lu]usec\n", perfo_rv_time);
 			perfo_rv_time = 0;
+			packet_id = 0;
 		}
+
+		packet_id++;
+
+		id = ntohl(ph->packet_id);
+
 
 		id_buff[u_packet_buff_index] = id;
 		payload_len = nfq_get_payload(nfa, &payload);
@@ -206,7 +211,7 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 
 		u_packet_buff_index++;
 
-		if( u_packet_buff_index == UPACKETBUFFSIZE || rv_time - first_rv_time > 1000 /*1000ms*/ ) {
+		if( u_packet_buff_index == UPACKETBUFFSIZE || rv_time - first_rv_time > 1000 /*1000us*/ ) {
 			do_work(sip_buff, u_packet_buff_index );
 
 			for( i = 0 ; i < u_packet_buff_index ; i++ ) {
@@ -224,7 +229,7 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	}
 
 	gettimeofday (&tv, NULL);
-	perfo_rv_time += (tv.tv_sec * 1000 + tv.tv_usec / 1000) - rv_time;
+	perfo_rv_time += (tv.tv_sec * 1000000 + tv.tv_usec) - rv_time;
 }
 
 _Bool break_flag = 0;
@@ -240,6 +245,7 @@ int r;
 
 int netlink_init(int q_num) {
 	u_packet_buff_index = 0;
+	packet_id = 0;
 
 	h = nfq_open();
 	if (!h) {
