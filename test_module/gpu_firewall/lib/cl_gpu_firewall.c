@@ -60,7 +60,7 @@ cl_int run_gpu_firewall(cl_context* context, cl_command_queue* command_queue, cl
 
 
 	printf("packet_buff_size : %d \n",packet_buff_size );
-	packet_buff_size++;
+	//packet_buff_size++;
 	//packet_buff_size= 128;
 	size_t globalThreads[1] = {packet_buff_size};
 

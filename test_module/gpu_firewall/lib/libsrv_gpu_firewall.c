@@ -226,10 +226,10 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 			if(fw_data.context == NULL){
 				printf("fw_data.context NULL 11!!! \n");
 			}
-			do_work(dip_buff, u_packet_buff_index - 1);
+			do_work(sip_buff, u_packet_buff_index );
 
 			for( i = 0 ; i < u_packet_buff_index ; i++ ) {
-				if( dip_buff == 0 ) {
+				if( sip_buff[i] == 0 ) {
 					nfq_set_verdict(qh, id_buff[i], NF_ACCEPT, 0, NULL);
 				}
 				else {
@@ -320,6 +320,12 @@ struct nfnl_handle *nh;
 int fd, rv;
 char buf[BUFSIZE];
 void handle_packet();
+pthread_t exec_thread;
+int thr_id;
+int r;
+
+
+
 int netlink_init(int q_num) {
 
 
@@ -356,16 +362,13 @@ int netlink_init(int q_num) {
 	nh = nfq_nfnlh(h);
 	fd = nfnl_fd(nh);
 
-	pthread_t exec_thread;
-	int thr_id;
-	int r;
 
 	printf("pthread start !!! \n");
 	thr_id = pthread_create(&exec_thread, NULL, handle_packet, NULL);
-	pthread_join(exec_thread, (void**)&r);
-	if (!r) {
-
-	}
+//	//pthread_join(exec_thread, (void**)&r);
+//	if (!r) {
+//
+//	}
 
 	printf("pthread end !!! \n");
 
@@ -377,9 +380,7 @@ void handle_packet(){
 	while ((rv = recv(fd, buf, sizeof(buf), 0)) && rv >= 0 && !break_flag) {
 		nfq_handle_packet(h, buf, rv);
 	}
-	fprintf(stderr, "NFQUEUE:unbinding from queue\n");
-	nfq_destroy_queue(qh);
-	nfq_close(h);
+
 }
 
 
@@ -415,8 +416,13 @@ int gpu_firewall_launch(struct qhgpu_service_request *sr) {
 	else {
 		printf("[libsrv_gpu_firewall] Info: packet_pool off\n");
 		//system("killall packet_poll");
+
 		off_flag = 0;
 		break_flag=1;
+		pthread_join(exec_thread, (void**)&r);
+		fprintf(stderr, "NFQUEUE:unbinding from queue\n");
+		nfq_destroy_queue(qh);
+		nfq_close(h);
 	}
 
 	printf("[libsrv_gpu_firewall] Info: gpu_firewall_launch end\n");
@@ -431,10 +437,31 @@ int gpu_firewall_post(struct qhgpu_service_request *sr) {
 
 static struct qhgpu_service gpu_firewall_srv;
 
+unsigned long inet_aton_custom(const char * str) {
+	unsigned long result = 0;
+	unsigned int iaddr[4] = { 0, };
+	unsigned char addr[4] = { 0, };
+
+	int i;
+	sscanf(str, "%d.%d.%d.%d ", iaddr, iaddr + 1, iaddr + 2, iaddr + 3);
+	for (i = 0; i < 4; i++) {
+		addr[i] = (char) iaddr[i];
+	}
+	for (i = 3; i > 0; i--) {
+		result |= addr[i];
+		result <<= 8;
+	}
+	result |= addr[0];
+	return result;
+}
+
 int do_work(int* packet_buff, int packet_buff_size) {
 
 
 
+	const char *addr = "112.108.40.2";
+
+	printf("%ld ipipip \n",inet_aton_custom(addr));
 	if(fw_data.context == NULL){
 		printf("fw_data.context NULL !!! \n");
 	}

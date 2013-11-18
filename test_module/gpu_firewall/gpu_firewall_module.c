@@ -166,7 +166,7 @@ int init_module(void) {
 	//모듈등록
 	register_chrdev(DROP_MAJOR, DROP_NAME, &drop_fops);
 
-	qhgpu_call_async(req);
+	qhgpu_call_sync(req);
 
 
 	printk("[gpu firewall kernel module]minit end.\n");
@@ -176,11 +176,12 @@ int init_module(void) {
 
 void cleanup_module(void) {
 
-	qhgpu_call_async(req);
+	qhgpu_call_sync(req);
 
+	printk("[gpu firewall kernel module]mexit 0\n");
 	nf_unregister_hook(&netfilter_ops);
 	//모듈해제
-	unregister_chrdev(DROP_MAJOR, DROP_NAME);
+	//unregister_chrdev(DROP_MAJOR, DROP_NAME);
 
 	printk("[gpu firewall kernel module]mexit\n");
 }
