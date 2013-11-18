@@ -32,6 +32,8 @@
 #define BUFSIZE 2048
 #define PAYLOADSIZE 2048
 
+#define UPACKETBUFFSIZE 128
+
 #define SRC_ADDR(payload) (*(in_addr_t *)((payload)+12))
 #define DST_ADDR(payload) (*(in_addr_t *)((payload)+16))
 
@@ -41,13 +43,14 @@
 #define TCP 6
 #define UDP 17
 
-int id_buff[128];
-int sip_buff[128];
-int dip_buff[128];
-unsigned short sport_buff[128];
-unsigned short dport_buff[128];
-unsigned int u_packet_buff_index;
-long first_rv_time;
+static int id_buff[UPACKETBUFFSIZE];
+static int sip_buff[UPACKETBUFFSIZE];
+static int dip_buff[UPACKETBUFFSIZE];
+static unsigned short sport_buff[UPACKETBUFFSIZE];
+static unsigned short dport_buff[UPACKETBUFFSIZE];
+static unsigned int u_packet_buff_index;
+static long first_rv_time;
+static long perfo_rv_time;
 
 struct queued_pkt {
 	uint32_t packet_id;
@@ -183,10 +186,18 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	snprintf(q_pkt.physoutdev, sizeof(q_pkt.physoutdev), "*");
 #endif
 
+	gettimeofday (&tv, NULL);
+	rv_time = (tv.tv_sec * 1000 + tv.tv_usec / 1000);
+
 	ph = nfq_get_msg_packet_hdr(nfa);
 
 	if (ph) {
 		id = ntohl(ph->packet_id);
+
+		if( id % 1000 == 0 ) {
+			printf("[libsrv_gpu_firewall] Info: 1000 packet compute time [%lu]usec\n", perfo_rv_time);
+			perfo_rv_time = 0;
+		}
 
 		id_buff[u_packet_buff_index] = id;
 		payload_len = nfq_get_payload(nfa, &payload);
@@ -195,13 +206,7 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 
 		u_packet_buff_index++;
 
-		gettimeofday (&tv, NULL);
-		rv_time = (tv.tv_sec * 1000 + tv.tv_usec / 1000);
-
-		if( u_packet_buff_index == 128 || rv_time - first_rv_time > 1000 /*1000ms*/ ) {
-			if(fw_data.context == NULL){
-				printf("fw_data.context NULL 11!!! \n");
-			}
+		if( u_packet_buff_index == UPACKETBUFFSIZE || rv_time - first_rv_time > 1000 /*1000ms*/ ) {
 			do_work(sip_buff, u_packet_buff_index );
 
 			for( i = 0 ; i < u_packet_buff_index ; i++ ) {
@@ -217,6 +222,9 @@ static int packet_buffering(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 			first_rv_time = rv_time;
 		}
 	}
+
+	gettimeofday (&tv, NULL);
+	perfo_rv_time += (tv.tv_sec * 1000 + tv.tv_usec / 1000) - rv_time;
 }
 
 _Bool break_flag = 0;
@@ -343,16 +351,16 @@ int do_work(int* packet_buff, int packet_buff_size) {
 
 int init_service(void *lh, int (*reg_srv)(struct qhgpu_service*, void*), cl_context context, cl_device_id* device_id) {
 	cl_int ret;
+	struct timeval tv;
 
 	printf("[libsrv_gpu_firewall] Info: init libsrv gpu firewall.\n");
 
 	fw_data.context = context;
 	fw_data.device_id = device_id;
 
-
-	if(fw_data.context == NULL){
-		printf("fw_data.context NULL 00!!! \n");
-	}
+	gettimeofday (&tv, NULL);
+	perfo_rv_time = 0;
+	first_rv_time = (tv.tv_sec * 1000 + tv.tv_usec / 1000);
 
 	ret = init_gpu_firewall(fw_data.device_id, &context, &(fw_data.command_queue), &(fw_data.program), &(fw_data.kernel));
 	if( ret != CL_SUCCESS) {
